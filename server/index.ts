@@ -17,7 +17,9 @@ import { loadWords } from './words_repo.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(here, '..', 'public');
-const PORT = Number(process.env.PORT ?? 3000);
+// Puerto 3100 por defecto (el proyecto de trivial usa el 3000): así los dos
+// juegos pueden estar abiertos a la vez sin pisarse ni confundir sus URLs.
+const PORT = Number(process.env.PORT ?? 3100);
 
 // El banco de palabras se carga una vez al arrancar y lo comparten todas las salas.
 const words = loadWords();

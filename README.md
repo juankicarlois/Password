@@ -18,9 +18,12 @@ npm install
 npm run dev
 ```
 
-Luego abre `http://localhost:3000` en el navegador. Para que otra persona de tu
-red local entre, comparte la dirección `http://TU-IP-LOCAL:3000` (el servidor la
+Luego abre `http://localhost:3100` en el navegador. Para que otra persona de tu
+red local entre, comparte la dirección `http://TU-IP-LOCAL:3100` (el servidor la
 imprime al arrancar) y usad el mismo código de sala.
+
+> El password usa el puerto **3100**; el proyecto de trivial usa el **3000**. Así
+> puedes tener los dos abiertos a la vez sin que se confundan.
 
 ### Jugar por internet (túnel accesible)
 

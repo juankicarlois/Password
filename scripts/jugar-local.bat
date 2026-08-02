@@ -11,6 +11,6 @@ start "Servidor Password" /D "%ROOT%" cmd /k npm run dev
 rem Un margen para que el servidor este listo antes de abrir el navegador.
 timeout /t 5 /nobreak >nul
 
-start "" http://localhost:3000
+start "" http://localhost:3100
 
 exit

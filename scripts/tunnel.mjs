@@ -11,7 +11,7 @@
 
 import { spawn } from 'node:child_process';
 
-const PORT = process.env.PORT ?? '3000';
+const PORT = process.env.PORT ?? '3100';
 const URL_PATTERN = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 /** Si en este tiempo no aparece la URL, algo va mal (sin conexión, etc.). */
 const URL_TIMEOUT_MS = 30000;
