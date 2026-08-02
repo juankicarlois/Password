@@ -22,6 +22,33 @@ Luego abre `http://localhost:3000` en el navegador. Para que otra persona de tu
 red local entre, comparte la dirección `http://TU-IP-LOCAL:3000` (el servidor la
 imprime al arrancar) y usad el mismo código de sala.
 
+### Jugar por internet (túnel accesible)
+
+Para jugar con alguien que no está en tu red, se abre un **túnel de Cloudflare**
+que da una URL pública temporal. Requiere `cloudflared` instalado una sola vez:
+
+```bash
+winget install Cloudflare.cloudflared
+```
+
+Con el servidor levantado (`npm run dev`), en otra terminal:
+
+```bash
+npm run tunnel
+```
+
+El túnel imprime **solo la URL** en una línea limpia (pensado para lector de
+pantalla) y la **copia al portapapeles**: pégala (Ctrl+V) a quien vaya a jugar,
+que la abra y entre con tu mismo código de sala. Ctrl+C cierra el túnel.
+
+### Lanzadores rápidos (Windows)
+
+En `scripts/` hay dos accesos directos que hacen todo lo anterior de una vez:
+
+- **`jugar-local.bat`** — arranca el servidor y abre el juego en el navegador.
+- **`jugar-online.bat`** — arranca el servidor y el túnel, cada uno en su ventana;
+  la ventana del túnel muestra y copia la URL para compartir.
+
 ## Cómo se juega (resumen)
 
 1. **Entra en una sala**: escribe un código (invéntalo y compártelo) y tu nombre.
