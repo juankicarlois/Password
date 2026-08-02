@@ -24,10 +24,14 @@ import {
 } from '../shared/protocol.js';
 import { Net } from './net.js';
 import { SoundEngine } from './audio.js';
+import { Speech } from './speech.js';
+import { HelpScreen } from './help.js';
 import { MessageHistory, historyIndexFromKey } from './history.js';
 
 /** Motor de efectos de sonido; acompaña a los anuncios de voz, sin sustituirlos. */
 const sound = new SoundEngine();
+/** Lectura en voz alta opcional (para quien juega sin lector de pantalla). */
+const speech = new Speech();
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -47,6 +51,7 @@ const historyRegion = $('history');
 const statusLine = $('status');
 const clockLine = $('clock');
 const muteButton = $<HTMLButtonElement>('btn-mute');
+const speakButton = $<HTMLButtonElement>('btn-speak');
 const playersTitle = $('players-title');
 const playersList = $('players');
 const configSection = $('config-section');
@@ -174,6 +179,8 @@ function flushAnnouncements(): void {
   // anterior, el lector no lo repetiría.
   announceToggle = !announceToggle;
   announceRegion.textContent = announceToggle ? text : text + '​';
+  // Lectura en voz alta opcional (para quien juega sin lector de pantalla).
+  speech.speak(text);
 }
 
 function nameOf(playerId: string): string {
@@ -835,6 +842,28 @@ muteButton.addEventListener('click', () => {
   announce(muted ? 'Sonidos silenciados.' : 'Sonidos activados.');
 });
 updateMuteButton();
+
+/** Refleja en el botón si la lectura en voz alta está activa. Se oculta si el
+ *  navegador no ofrece síntesis de voz. */
+function updateSpeakButton(): void {
+  if (!speech.available) {
+    speakButton.hidden = true;
+    return;
+  }
+  speakButton.textContent = speech.isEnabled ? 'No leer en voz alta' : 'Leer en voz alta';
+  speakButton.setAttribute('aria-pressed', String(speech.isEnabled));
+}
+speakButton.addEventListener('click', () => {
+  const enabled = speech.toggle();
+  updateSpeakButton();
+  announce(enabled ? 'Lectura en voz alta activada.' : 'Lectura en voz alta desactivada.');
+});
+updateSpeakButton();
+
+/** Manual "cómo se juega", superpuesto a la pantalla que hubiera. */
+const help = new HelpScreen({ help: $('help-screen'), others: [joinScreen, gameScreen] });
+$<HTMLButtonElement>('btn-help-join').addEventListener('click', (ev) => help.show(ev.currentTarget as HTMLElement));
+$<HTMLButtonElement>('btn-help-game').addEventListener('click', (ev) => help.show(ev.currentTarget as HTMLElement));
 
 function button(label: string, onClick: () => void, variant = ''): HTMLButtonElement {
   const btn = document.createElement('button');

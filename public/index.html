@@ -36,6 +36,9 @@
           <button type="submit">Entrar en la sala</button>
         </form>
         <p id="join-error" class="error" role="alert"></p>
+        <p>
+          <button type="button" id="btn-help-join" class="secondary">Cómo se juega</button>
+        </p>
       </section>
 
       <!-- Partida (vestíbulo + juego) -->
@@ -56,6 +59,8 @@
 
         <div class="toolbar" role="group" aria-label="Opciones">
           <button type="button" id="btn-mute" class="secondary"></button>
+          <button type="button" id="btn-speak" class="secondary"></button>
+          <button type="button" id="btn-help-game" class="secondary">Cómo se juega</button>
         </div>
 
         <section id="config-section" aria-label="Configuración de la partida"></section>
@@ -65,6 +70,100 @@
 
         <h2>Acciones</h2>
         <div id="actions" tabindex="-1"></div>
+      </section>
+
+      <!--
+        Manual. Contenido estático y semántico (encabezados y listas) para
+        recorrerlo con la navegación por encabezados del lector de pantalla. El
+        botón "Volver" está al principio y al final para no tener que recorrerlo
+        entero para salir. El foco lo gestiona help.ts.
+      -->
+      <section id="help-screen" aria-labelledby="help-title" tabindex="-1" hidden>
+        <h1 id="help-title">Cómo se juega</h1>
+        <p>
+          <button type="button" class="secondary" data-help-close>Volver</button>
+        </p>
+
+        <h2>Qué es el Password</h2>
+        <p>
+          Un jugador conoce una <strong>palabra secreta</strong> y da
+          <strong>pistas</strong> para que otro la <strong>adivine</strong>. En la
+          versión clásica cada pista es una sola palabra; en la versión de frase
+          corta se permiten unas pocas. No se puede decir la palabra secreta ni
+          una variante suya. Cuantas menos pistas hagan falta para acertar, más
+          puntos. Está pensado para jugarse escuchando, con lector de pantalla.
+        </p>
+
+        <h2>Entrar en una sala</h2>
+        <p>
+          Escribe un <strong>código de sala</strong> (te lo inventas) y tu nombre.
+          Quien use el mismo código juega contigo, así que para jugar con alguien
+          basta con compartirle el código. ¿No tienes con quién? Entra igual y
+          añade <strong>bots</strong> para jugar en solitario contra la máquina.
+        </p>
+
+        <h2>Preparar la partida</h2>
+        <p>
+          Quien crea la sala elige, antes de empezar: las <strong>reglas de
+          pista</strong> (una palabra o frase corta), el <strong>número de
+          palabras</strong> de la tanda o, en el <strong>contrarreloj</strong>, la
+          duración. Cuando estéis, pulsa «Empezar partida».
+        </p>
+
+        <h2>Tu turno</h2>
+        <ul>
+          <li>
+            <strong>Si das las pistas:</strong> verás la palabra secreta. Escribe
+            una pista en el campo y pulsa «Enviar pista». Si la pista no vale (dice
+            la palabra o tiene demasiadas), se te avisa y no cuenta.
+          </li>
+          <li>
+            <strong>Si adivinas:</strong> oirás cada pista según llega. Escribe tu
+            intento y pulsa «Adivinar». Si fallas, seguirás recibiendo pistas.
+          </li>
+          <li>
+            <strong>Pasar palabra:</strong> cualquiera de los dos puede saltar la
+            palabra si se atasca; esa palabra no puntúa.
+          </li>
+          <li>Los papeles de dar pistas y adivinar se van <strong>alternando</strong> palabra a palabra.</li>
+        </ul>
+
+        <h2>Contrarreloj</h2>
+        <p>
+          En este modo se juega contra el reloj: cuantas más palabras acertéis
+          antes de que se agote el tiempo, mejor. El juego avisa por voz cuando
+          quedan 60, 30 y 10 segundos.
+        </p>
+
+        <h2>Sonidos y voz</h2>
+        <p>
+          Los avisos importantes se leen solos en tu lector de pantalla. Unos
+          efectos de sonido cortos los acompañan (acierto, fallo, pista nueva…);
+          puedes quitarlos con «Silenciar sonidos». Si juegas <strong>sin</strong>
+          lector de pantalla, activa «Leer en voz alta» para que el propio juego
+          te lea los avisos.
+        </p>
+
+        <h2>Repetir un aviso</h2>
+        <p>
+          Si se te escapa un aviso, <kbd>Alt</kbd> más un número repite uno de los
+          últimos: <kbd>Alt+1</kbd> el último, <kbd>Alt+2</kbd> el anterior… y
+          <kbd>Alt+0</kbd> el décimo. Al llevar <kbd>Alt</kbd>, el lector no se
+          queda la tecla, así que funciona también en modo exploración.
+        </p>
+
+        <h2>Moverte por el juego</h2>
+        <p>
+          Todo se maneja con controles normales: <kbd>Tab</kbd> y
+          <kbd>Mayús+Tab</kbd> para moverte entre botones y campos, e
+          <kbd>Intro</kbd> o <kbd>Espacio</kbd> para activarlos. En los campos de
+          texto, <kbd>Intro</kbd> envía. No hay atajos de una sola letra, para no
+          chocar con la navegación rápida del lector.
+        </p>
+
+        <p>
+          <button type="button" class="secondary" data-help-close>Volver</button>
+        </p>
       </section>
     </main>
 

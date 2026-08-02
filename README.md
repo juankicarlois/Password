@@ -81,6 +81,10 @@ revisa las condiciones de licencia de esa librería.
   te haya pasado.
 - Las acciones son **botones** (funcionan con el lector en modo exploración); los
   atajos usan siempre **Alt** para no chocar con la navegación rápida del lector.
+- El botón **«Cómo se juega»** abre un manual navegable por encabezados.
+- Quien juega **sin** lector de pantalla puede activar **«Leer en voz alta»** para
+  que el juego lea sus avisos con la voz del navegador.
+- Todos los controles de teclado están documentados en [`teclas.md`](teclas.md).
 
 ## Estructura del proyecto
 
