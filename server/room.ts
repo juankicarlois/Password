@@ -3,9 +3,9 @@
  * código, su configuración de partida y su fase. La sala es la dueña del estado;
  * el cliente solo recibe vistas y manda intenciones.
  *
- * En esta fase la sala cubre el vestíbulo: unirse, ver quién hay, añadir o quitar
- * bots, configurar y arrancar. El ciclo de juego (rondas, pistas, aciertos) se
- * añade sobre esta base en fases posteriores.
+ * La sala gestiona el vestíbulo (unirse, bots, configuración, arranque) y, una
+ * vez empezada la partida, delega el ciclo de juego en el motor (`GameEngine`),
+ * traduciendo sus avisos a mensajes de red.
  */
 
 import {
@@ -14,10 +14,13 @@ import {
   type GameConfig,
   type GameEvent,
   type GamePhase,
+  type GameSummaryView,
   type GameView,
   type PlayerView,
   type ServerMessage,
 } from '../shared/protocol.js';
+import { GameEngine, type EngineEmitter } from './engine.js';
+import type { Word } from './words_repo.js';
 
 /**
  * Salida de la sala hacia las conexiones. La sala no conoce los WebSockets: solo
@@ -48,10 +51,13 @@ export class Room {
   private config: GameConfig = { ...DEFAULT_CONFIG };
   private nextPlayerNumber = 1;
   private nextBotNumber = 1;
+  private engine: GameEngine | null = null;
+  private lastSummary: GameSummaryView | null = null;
 
   constructor(
     public readonly code: string,
     private readonly transport: Transport,
+    private readonly words: Word[],
   ) {}
 
   // --- Altas y bajas --------------------------------------------------------
@@ -69,6 +75,9 @@ export class Room {
     const existing = this.players.find((p) => !p.isBot && p.name === name);
     if (existing) {
       existing.connected = true;
+      // Al reconectar, un dador ha de recuperar su palabra secreta (el cliente la
+      // pierde al recargar); el motor la reenvía a quien corresponda.
+      if (this.engine && !this.engine.isFinished) this.engine.resendSecrets();
       this.broadcastState();
       return existing.id;
     }
@@ -134,17 +143,59 @@ export class Room {
   }
 
   /**
-   * @brief Arranca la partida. Solo el anfitrión puede, y hace falta un mínimo
-   *        de dos participantes (el Password necesita dador y adivinador).
+   * @brief Arranca la partida. Solo el anfitrión puede, y hacen falta al menos
+   *        dos participantes (el Password necesita dador y adivinador).
+   *
+   * Los dos primeros jugadores forman la pareja cooperativa; los roles se
+   * alternan cada palabra.
    *
    * @param playerId Quién pide empezar.
    */
   start(playerId: string): void {
-    if (this.phase !== 'lobby' || playerId !== this.hostId) return;
+    const enLobby = this.phase === 'lobby' || this.phase === 'gameOver';
+    if (!enLobby || playerId !== this.hostId) return;
     if (this.players.length < 2) return;
+
     this.phase = 'playing';
+    this.lastSummary = null;
+    const participants = this.players.slice(0, 2).map((p) => p.id);
+    this.engine = new GameEngine(participants, this.config, this.words, this.engineEmitter());
     this.emit({ kind: 'gameStarted' });
-    this.broadcastState();
+    this.engine.start();
+  }
+
+  // --- Acciones de juego (delegadas al motor) -------------------------------
+
+  /** Registra una pista del jugador (si la partida está en marcha). */
+  clue(playerId: string, text: string): void {
+    if (this.phase === 'playing' && this.engine) this.engine.submitClue(playerId, text);
+  }
+
+  /** Registra un intento de adivinar. */
+  guess(playerId: string, text: string): void {
+    if (this.phase === 'playing' && this.engine) this.engine.submitGuess(playerId, text);
+  }
+
+  /** Salta la palabra actual. */
+  pass(playerId: string): void {
+    if (this.phase === 'playing' && this.engine) this.engine.pass(playerId);
+  }
+
+  /** Emisor que traduce los avisos del motor a mensajes de red. */
+  private engineEmitter(): EngineEmitter {
+    return {
+      stateChanged: () => this.broadcastState(),
+      event: (e) => this.emit(e),
+      secret: (playerId, word) => this.transport.sendTo(playerId, { type: 'secret', word }),
+      clueRejected: (playerId, reason) => this.transport.sendTo(playerId, { type: 'clueRejected', reason }),
+      finished: (summary) => {
+        this.phase = 'gameOver';
+        this.lastSummary = summary;
+        this.transport.broadcast({ type: 'summary', summary });
+        this.emit({ kind: 'gameOver' });
+        this.broadcastState();
+      },
+    };
   }
 
   // --- Vistas y envíos ------------------------------------------------------
@@ -165,7 +216,14 @@ export class Room {
       hostId: this.hostId,
       players,
       config: this.config,
+      round: this.phase === 'playing' && this.engine ? this.engine.roundView() : null,
+      score: this.engine ? this.engine.scoreView() : null,
     };
+  }
+
+  /** Resumen de la última partida terminada, si lo hay. */
+  get summary(): GameSummaryView | null {
+    return this.lastSummary;
   }
 
   /** Reenvía la vista a toda la sala. */

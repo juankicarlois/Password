@@ -13,10 +13,14 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import type { ClientMessage, ServerMessage } from '../shared/protocol.js';
 import { Room, type Transport } from './room.js';
+import { loadWords } from './words_repo.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(here, '..', 'public');
 const PORT = Number(process.env.PORT ?? 3000);
+
+// El banco de palabras se carga una vez al arrancar y lo comparten todas las salas.
+const words = loadWords();
 
 // --- Gestión de salas -------------------------------------------------------
 
@@ -48,7 +52,7 @@ function getOrCreateRoom(code: string): RoomEntry {
         }
       },
     };
-    entry = { room: new Room(code, transport), sockets, byPlayer };
+    entry = { room: new Room(code, transport, words), sockets, byPlayer };
     rooms.set(code, entry);
   }
   return entry;
@@ -161,6 +165,15 @@ wss.on('connection', (socket: WebSocket) => {
         break;
       case 'setConfig':
         room.setConfig(meta.playerId, msg.config);
+        break;
+      case 'clue':
+        room.clue(meta.playerId, msg.text);
+        break;
+      case 'guess':
+        room.guess(meta.playerId, msg.text);
+        break;
+      case 'pass':
+        room.pass(meta.playerId);
         break;
       default:
         send({ type: 'error', message: 'Acción desconocida.' });

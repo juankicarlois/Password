@@ -11,7 +11,7 @@
     "dev": "npm run build:client && tsx server/index.ts",
     "tunnel": "node scripts/tunnel.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test shared/rules.test.ts"
+    "test": "node --import tsx --test shared/rules.test.ts server/words_repo.test.ts server/engine.test.ts"
   },
   "dependencies": {
     "ws": "^8.18.0"

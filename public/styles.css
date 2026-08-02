@@ -205,3 +205,51 @@ button[aria-pressed="true"] {
 #actions {
   margin-top: 0.5rem;
 }
+
+/* --- Juego --- */
+
+.secret-word {
+  background: var(--accent-strong);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.clues-title {
+  font-size: 1.05rem;
+  margin: 1rem 0 0.3rem;
+}
+.clues {
+  margin: 0.3rem 0;
+  padding-left: 1.6rem;
+}
+.clues li {
+  margin: 0.15rem 0;
+  font-weight: 600;
+}
+
+.play-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+.play-form .field {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.summary {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin: 0.5rem 0 1rem;
+}
+.summary ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.4rem;
+}

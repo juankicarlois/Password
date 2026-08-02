@@ -93,6 +93,57 @@ export interface PlayerView {
   team: number | null;
 }
 
+/** Papel de un jugador en una ronda: da pistas o adivina. */
+export type Role = 'giver' | 'guesser';
+
+/** Un intento de adivinar, ya resuelto. */
+export interface GuessView {
+  playerId: string;
+  text: string;
+  correct: boolean;
+}
+
+/**
+ * Vista pública de la ronda en curso. **No contiene la palabra secreta**: esa
+ * solo la conoce el jugador que da pistas, y le llega en un mensaje aparte.
+ */
+export interface RoundView {
+  /** Número de palabra dentro de la tanda (1..total). */
+  index: number;
+  /** Palabras de la tanda (o del contrarreloj resueltas hasta ahora). */
+  total: number;
+  /** Quién da pistas y quién adivina en esta ronda. */
+  giverId: string;
+  guesserId: string;
+  /** Categoría de la palabra: pista de contexto pública para el adivinador. */
+  category: string;
+  /** Pistas dadas hasta ahora, en orden (públicas). */
+  clues: string[];
+  /** Intentos hechos hasta ahora (públicos). */
+  guesses: GuessView[];
+  /** A quién le toca actuar: al dador le falta pista, al adivinador acertar. */
+  waitingFor: Role;
+}
+
+/** Marcador de la partida cooperativa. */
+export interface ScoreView {
+  /** Puntos acumulados. */
+  points: number;
+  /** Palabras acertadas. */
+  solved: number;
+  /** Palabras jugadas (acertadas + pasadas). */
+  played: number;
+}
+
+/** Resumen final de la partida, para anunciarlo y pintarlo al terminar. */
+export interface GameSummaryView {
+  solved: number;
+  played: number;
+  points: number;
+  /** Pistas de media por palabra acertada (0 si no se acertó ninguna). */
+  avgClues: number;
+}
+
 /** Vista pública completa del estado de la sala. */
 export interface GameView {
   roomCode: string;
@@ -101,6 +152,10 @@ export interface GameView {
   hostId: string | null;
   players: PlayerView[];
   config: GameConfig;
+  /** Ronda en curso mientras se juega; null en el vestíbulo y al terminar. */
+  round: RoundView | null;
+  /** Marcador mientras se juega; null en el vestíbulo. */
+  score: ScoreView | null;
 }
 
 // --- Eventos puntuales (disparan sonido y anuncio, no pintan estado) ---------
@@ -114,6 +169,11 @@ export type GameEvent =
   | { kind: 'playerJoined'; playerId: string; name: string }
   | { kind: 'playerLeft'; playerId: string; name: string }
   | { kind: 'gameStarted' }
+  | { kind: 'roundStarted'; index: number; total: number; category: string; giverId: string; guesserId: string }
+  | { kind: 'clueGiven'; clue: string; byPlayerId: string }
+  | { kind: 'guessMade'; text: string; correct: boolean; byPlayerId: string }
+  | { kind: 'wordSolved'; word: string; points: number }
+  | { kind: 'wordSkipped'; word: string }
   | { kind: 'gameOver' };
 
 // --- Mensajes del cliente al servidor ---------------------------------------
@@ -123,7 +183,10 @@ export type ClientMessage =
   | { type: 'start' }
   | { type: 'addBot'; difficulty: BotDifficulty }
   | { type: 'removeBot'; playerId: string }
-  | { type: 'setConfig'; config: Partial<GameConfig> };
+  | { type: 'setConfig'; config: Partial<GameConfig> }
+  | { type: 'clue'; text: string }
+  | { type: 'guess'; text: string }
+  | { type: 'pass' };
 
 // --- Mensajes del servidor al cliente ---------------------------------------
 
@@ -131,4 +194,9 @@ export type ServerMessage =
   | { type: 'joined'; playerId: string }
   | { type: 'state'; state: GameView }
   | { type: 'event'; event: GameEvent }
+  /** Palabra secreta de la ronda: solo se manda al dador. null la borra. */
+  | { type: 'secret'; word: string | null }
+  /** La pista del dador no cumple las reglas; solo se le avisa a él. */
+  | { type: 'clueRejected'; reason: string }
+  | { type: 'summary'; summary: GameSummaryView }
   | { type: 'error'; message: string };

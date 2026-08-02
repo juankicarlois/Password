@@ -18,7 +18,9 @@ import {
   type GameEnding,
   type GameEvent,
   type GameStructure,
+  type GameSummaryView,
   type GameView,
+  type RoundView,
 } from '../shared/protocol.js';
 import { Net } from './net.js';
 import { MessageHistory, historyIndexFromKey } from './history.js';
@@ -51,6 +53,10 @@ let roomCode = '';
 let myName = '';
 let lastState: GameView | null = null;
 let lastActionKey = '';
+/** Palabra secreta de la ronda: solo la tiene el dador. La borra un `secret` null. */
+let secretWord: string | null = null;
+/** Resumen de la última partida, para pintarlo en la pantalla de fin. */
+let lastSummary: GameSummaryView | null = null;
 /** Alterna un carácter invisible para forzar que el lector repita anuncios. */
 let announceToggle = false;
 let historyToggle = false;
@@ -79,6 +85,18 @@ const net = new Net({
         break;
       case 'event':
         handleEvent(message.event);
+        break;
+      case 'secret':
+        secretWord = message.word;
+        if (lastState) renderActions(lastState);
+        break;
+      case 'clueRejected':
+        announce(`Pista no válida. ${message.reason}`);
+        break;
+      case 'summary':
+        lastSummary = message.summary;
+        announce(spokenSummary(message.summary));
+        if (lastState) renderActions(lastState);
         break;
       case 'error':
         showError(message.message);
@@ -162,10 +180,38 @@ function handleEvent(event: GameEvent): void {
       announce(`${nameOf(event.playerId)} ha salido de la sala.`);
       break;
     case 'gameStarted':
+      lastSummary = null;
       announce('¡Empieza la partida!');
       break;
+    case 'roundStarted': {
+      const daPistas = event.giverId === myId ? 'Tú das las pistas' : `Da pistas ${nameOf(event.giverId)}`;
+      const adivina = event.guesserId === myId ? 'tú adivinas' : `adivina ${nameOf(event.guesserId)}`;
+      announce(`Palabra ${event.index} de ${event.total}. Categoría: ${event.category}. ${daPistas} y ${adivina}.`);
+      break;
+    }
+    case 'clueGiven':
+      // A quien da la pista se lo confirma su propio repintado; a los demás se les
+      // canta la pista nueva, que es lo que necesita el que adivina.
+      if (event.byPlayerId !== myId) announce(`Pista: ${event.clue}.`);
+      break;
+    case 'guessMade':
+      // El acierto lo anuncia `wordSolved` (con la palabra); aquí solo los fallos.
+      if (!event.correct) {
+        announce(
+          event.byPlayerId === myId
+            ? `${event.text}: no es. Sigue con más pistas.`
+            : `${nameOf(event.byPlayerId)} prueba ${event.text}: no es.`,
+        );
+      }
+      break;
+    case 'wordSolved':
+      announce(`¡Correcto! La palabra era ${event.word}. ${event.points} punto${event.points === 1 ? '' : 's'}.`);
+      break;
+    case 'wordSkipped':
+      announce(`Palabra saltada. Era: ${event.word}.`);
+      break;
     case 'gameOver':
-      announce('Fin de la partida.');
+      // El resumen llega en su propio mensaje y ya se anuncia allí.
       break;
   }
 }
@@ -185,11 +231,21 @@ function renderStatus(state: GameView): void {
     case 'lobby':
       text = `Sala ${state.roomCode}. ${state.players.length} jugador(es). Esperando para empezar.`;
       break;
-    case 'playing':
-      text = 'Partida en curso.';
+    case 'playing': {
+      const round = state.round;
+      if (!round) {
+        text = 'Partida en curso.';
+        break;
+      }
+      const rol = round.giverId === myId ? 'das pistas' : round.guesserId === myId ? 'adivinas' : 'miras';
+      const puntos = state.score ? ` Puntos: ${state.score.points} (${state.score.solved} de ${round.total}).` : '';
+      text = `Palabra ${round.index} de ${round.total}. Categoría: ${round.category}. Tú ${rol}.${puntos}`;
       break;
+    }
     case 'gameOver':
-      text = 'Fin de la partida.';
+      text = state.score
+        ? `Fin de la partida. ${state.score.solved} de ${state.score.played} acertadas, ${state.score.points} puntos.`
+        : 'Fin de la partida.';
       break;
   }
   statusLine.textContent = text;
@@ -365,12 +421,10 @@ function renderActions(state: GameView): void {
       actions.append(startBtn);
       focusTarget = startBtn;
     }
-  } else if (state.phase === 'playing') {
-    const hint = document.createElement('p');
-    hint.className = 'hint';
-    hint.textContent = 'La partida está en marcha. El juego de pistas se añade en la siguiente fase del desarrollo.';
-    actions.append(hint);
+  } else if (state.phase === 'playing' && state.round) {
+    focusTarget = renderPlaying(state.round);
   } else if (state.phase === 'gameOver') {
+    if (lastSummary) actions.append(buildSummaryPanel(lastSummary));
     if (soyAnfitrion) {
       const again = button('Jugar otra vez', () => net.send({ type: 'start' }));
       again.id = 'play-again';
@@ -383,11 +437,195 @@ function renderActions(state: GameView): void {
 }
 
 /**
+ * Pinta la pantalla de juego según el papel de este jugador en la ronda: el
+ * dador ve la palabra secreta y da pistas; el adivinador ve las pistas y prueba;
+ * quien no juega esta ronda mira. Devuelve el mando que debe recibir el foco.
+ *
+ * @param round Ronda en curso.
+ * @return Elemento a enfocar, o null.
+ */
+function renderPlaying(round: RoundView): HTMLElement | null {
+  const soyDador = round.giverId === myId;
+  const soyAdivinador = round.guesserId === myId;
+
+  // Historial de pistas dadas, común a los tres papeles: es la información que
+  // sostiene la ronda y debe poder consultarse en cualquier momento.
+  const cluesBlock = buildCluesList(round);
+
+  if (soyDador) {
+    const secret = document.createElement('p');
+    secret.className = 'secret-word';
+    secret.textContent = secretWord
+      ? `Palabra secreta: ${secretWord}. Categoría: ${round.category}.`
+      : `Categoría: ${round.category}. (Esperando la palabra…)`;
+    actions.append(secret, cluesBlock);
+
+    if (round.waitingFor === 'giver') {
+      const reglaHint = document.createElement('p');
+      reglaHint.className = 'hint';
+      reglaHint.textContent = 'Escribe una pista de una sola palabra que ayude a adivinar, sin decir la palabra secreta.';
+      const field = formField('Tu pista', 'Enviar pista', (value) => net.send({ type: 'clue', text: value }));
+      actions.append(reglaHint, field.wrap);
+      actions.append(passButton());
+      return field.input;
+    }
+    const wait = document.createElement('p');
+    wait.className = 'hint';
+    wait.textContent = `Pista enviada. Esperando a que ${nameOf(round.guesserId)} adivine…`;
+    actions.append(wait, passButton());
+    return null;
+  }
+
+  if (soyAdivinador) {
+    const catLine = document.createElement('p');
+    catLine.className = 'hint';
+    catLine.textContent = `Categoría: ${round.category}. Escucha las pistas y adivina la palabra.`;
+    actions.append(catLine, cluesBlock);
+
+    if (round.waitingFor === 'guesser') {
+      const field = formField('Tu respuesta', 'Adivinar', (value) => net.send({ type: 'guess', text: value }));
+      actions.append(field.wrap, passButton());
+      return field.input;
+    }
+    const wait = document.createElement('p');
+    wait.className = 'hint';
+    wait.textContent = `Esperando la pista de ${nameOf(round.giverId)}…`;
+    actions.append(wait, passButton());
+    return null;
+  }
+
+  // Espectador: no juega esta ronda, pero sigue la partida.
+  const info = document.createElement('p');
+  info.className = 'hint';
+  info.textContent = `Da pistas ${nameOf(round.giverId)} y adivina ${nameOf(round.guesserId)}. Categoría: ${round.category}.`;
+  actions.append(info, cluesBlock);
+  return null;
+}
+
+/** Lista de las pistas dadas hasta ahora, numeradas, o un aviso si no hay. */
+function buildCluesList(round: RoundView): HTMLElement {
+  const wrap = document.createElement('div');
+  const title = document.createElement('h3');
+  title.className = 'clues-title';
+  title.textContent = `Pistas (${round.clues.length})`;
+  wrap.append(title);
+
+  if (round.clues.length === 0) {
+    const none = document.createElement('p');
+    none.className = 'hint';
+    none.textContent = 'Todavía no hay pistas.';
+    wrap.append(none);
+    return wrap;
+  }
+  const list = document.createElement('ol');
+  list.className = 'clues';
+  for (const clue of round.clues) {
+    const li = document.createElement('li');
+    li.textContent = clue;
+    list.append(li);
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+/** Botón para pasar de palabra, disponible para dador y adivinador. */
+function passButton(): HTMLButtonElement {
+  return button('Pasar palabra', () => net.send({ type: 'pass' }), 'secondary');
+}
+
+/**
+ * @brief Campo de texto con su botón de envío, accesible: etiqueta asociada,
+ *        envío con Enter o con el botón, y se vacía tras enviar.
+ *
+ * @param labelText Rótulo del campo.
+ * @param buttonText Texto del botón de envío.
+ * @param onSubmit Qué hacer con el valor (no se llama si está vacío).
+ * @return El contenedor y el input (para poder enfocarlo).
+ */
+function formField(
+  labelText: string,
+  buttonText: string,
+  onSubmit: (value: string) => void,
+): { wrap: HTMLElement; input: HTMLInputElement } {
+  const form = document.createElement('form');
+  form.className = 'play-form';
+
+  const field = document.createElement('div');
+  field.className = 'field';
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.autocomplete = 'off';
+  input.maxLength = 40;
+  input.id = 'play-input';
+  label.htmlFor = input.id;
+  label.textContent = labelText;
+  field.append(label, input);
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.textContent = buttonText;
+
+  form.append(field, submit);
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const value = input.value.trim();
+    if (!value) return;
+    onSubmit(value);
+    input.value = '';
+  });
+  return { wrap: form, input };
+}
+
+// --- Resumen final ----------------------------------------------------------
+
+/** Frases del resumen; se comparten entre la voz y el panel visible. */
+function summaryLines(s: GameSummaryView): string[] {
+  const lines = [
+    `Palabras acertadas: ${s.solved} de ${s.played}.`,
+    `Puntos: ${s.points}.`,
+  ];
+  if (s.solved > 0) lines.push(`Pistas de media por acierto: ${s.avgClues}.`);
+  return lines;
+}
+
+/** Texto hablado del resumen (una sola frase), para el lector al acabar. */
+function spokenSummary(s: GameSummaryView): string {
+  return `Se acabó. Vuestro resumen: ${summaryLines(s).join(' ')}`;
+}
+
+/** Panel visible del resumen para la pantalla de fin de partida. */
+function buildSummaryPanel(s: GameSummaryView): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'summary';
+  panel.setAttribute('aria-label', 'Resumen de la partida');
+  const title = document.createElement('h3');
+  title.textContent = 'Resumen de la partida';
+  panel.append(title);
+  const list = document.createElement('ul');
+  for (const linea of summaryLines(s)) {
+    const li = document.createElement('li');
+    li.textContent = linea;
+    list.append(li);
+  }
+  panel.append(list);
+  return panel;
+}
+
+/**
  * Mueve el foco al mando principal solo cuando cambia el conjunto de acciones,
  * para no robar el foco en cada actualización de estado.
  */
 function manageFocus(state: GameView, target: HTMLElement | null, previousFocusId: string): void {
-  const key = [state.phase, state.players.length, state.hostId ?? ''].join('|');
+  const round = state.round;
+  const key = [
+    state.phase,
+    state.players.length,
+    state.hostId ?? '',
+    // Dentro de una partida, cada cambio de turno o de pista es una acción nueva:
+    // así el foco baja al campo de pista o de respuesta en cuanto aparece.
+    round ? `${round.index}|${round.waitingFor}|${round.giverId}|${round.clues.length}` : '',
+  ].join('|');
   if (key !== lastActionKey && target) {
     target.focus();
   } else if (key === lastActionKey && previousFocusId) {
