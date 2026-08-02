@@ -6,11 +6,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { normalize } from '../shared/rules.js';
 import { loadWords, shuffle, dealWords, type Word } from './words_repo.js';
 
-test('loadWords carga el banco común con la forma esperada', () => {
+test('loadWords carga el banco con la forma esperada', () => {
   const words = loadWords();
-  assert.ok(words.length >= 20, 'debería haber unas cuantas palabras');
+  assert.ok(words.length >= 100, 'debería haber un banco amplio');
   for (const w of words) {
     assert.equal(typeof w.palabra, 'string');
     assert.ok(w.palabra.length > 0);
@@ -18,6 +19,16 @@ test('loadWords carga el banco común con la forma esperada', () => {
     assert.ok(Array.isArray(w.pistas));
     assert.ok(Array.isArray(w.prohibidas));
   }
+});
+
+test('el banco no tiene palabras duplicadas', () => {
+  const counts = new Map<string, number>();
+  for (const w of loadWords()) {
+    const key = normalize(w.palabra);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const duplicadas = [...counts.entries()].filter(([, n]) => n > 1).map(([k]) => k);
+  assert.deepEqual(duplicadas, [], `palabras duplicadas: ${duplicadas.join(', ')}`);
 });
 
 test('shuffle no modifica la lista original', () => {
