@@ -703,9 +703,14 @@ function renderPlaying(round: RoundView): HTMLElement | null {
   const soyDador = round.giverId === myId;
   const soyAdivinador = round.guesserId === myId;
 
-  // Historial de pistas dadas, común a los tres papeles: es la información que
-  // sostiene la ronda y debe poder consultarse en cualquier momento.
-  const cluesBlock = buildCluesList(round);
+  // Historial de pistas e intentos, común a los tres papeles: es la información
+  // que sostiene la ronda y debe verse (y oírse) en cualquier momento. Los
+  // intentos van también en pantalla, no solo por voz, para que quien ve siga
+  // lo que se ha probado.
+  const roundInfo = document.createDocumentFragment();
+  roundInfo.append(buildCluesList(round));
+  const guessesBlock = buildGuessesList(round);
+  if (guessesBlock) roundInfo.append(guessesBlock);
 
   if (soyDador) {
     const secret = document.createElement('p');
@@ -713,7 +718,7 @@ function renderPlaying(round: RoundView): HTMLElement | null {
     secret.textContent = secretWord
       ? `Palabra secreta: ${secretWord}. Categoría: ${round.category}.`
       : `Categoría: ${round.category}. (Esperando la palabra…)`;
-    actions.append(secret, cluesBlock);
+    actions.append(secret, roundInfo);
 
     if (round.waitingFor === 'giver') {
       const reglaHint = document.createElement('p');
@@ -739,7 +744,7 @@ function renderPlaying(round: RoundView): HTMLElement | null {
     const catLine = document.createElement('p');
     catLine.className = 'hint';
     catLine.textContent = `Categoría: ${round.category}. Escucha las pistas y adivina la palabra.`;
-    actions.append(catLine, cluesBlock);
+    actions.append(catLine, roundInfo);
 
     if (round.waitingFor === 'guesser') {
       const field = formField('Tu respuesta', 'Adivinar', (value) => net.send({ type: 'guess', text: value }));
@@ -757,7 +762,7 @@ function renderPlaying(round: RoundView): HTMLElement | null {
   const info = document.createElement('p');
   info.className = 'hint';
   info.textContent = `Da pistas ${nameOf(round.giverId)} y adivina ${nameOf(round.guesserId)}. Categoría: ${round.category}.`;
-  actions.append(info, cluesBlock);
+  actions.append(info, roundInfo);
   return null;
 }
 
@@ -781,6 +786,33 @@ function buildCluesList(round: RoundView): HTMLElement {
   for (const clue of round.clues) {
     const li = document.createElement('li');
     li.textContent = clue;
+    list.append(li);
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+/**
+ * Lista de intentos hechos en la ronda, para que TODOS (dador, adivinador y
+ * espectador) vean lo que se ha probado, no solo lo oigan. El resultado se dice
+ * con palabras ("acierto" / "no es"), nunca solo con color, para que se entienda
+ * sin ver. Devuelve null si aún no hay intentos.
+ */
+function buildGuessesList(round: RoundView): HTMLElement | null {
+  if (round.guesses.length === 0) return null;
+  const wrap = document.createElement('div');
+  const title = document.createElement('h3');
+  title.className = 'clues-title';
+  title.textContent = `Intentos (${round.guesses.length})`;
+  wrap.append(title);
+
+  const list = document.createElement('ul');
+  list.className = 'guesses';
+  for (const guess of round.guesses) {
+    const li = document.createElement('li');
+    li.className = 'guess' + (guess.correct ? ' correct' : ' wrong');
+    const quien = guess.playerId === myId ? 'Tú' : nameOf(guess.playerId);
+    li.textContent = `${quien}: ${guess.text} — ${guess.correct ? 'acierto' : 'no es'}`;
     list.append(li);
   }
   wrap.append(list);
