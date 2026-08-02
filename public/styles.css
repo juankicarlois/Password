@@ -1,0 +1,207 @@
+/*
+ * Estilos del cliente. El juego es accesible ante todo por lector de pantalla,
+ * así que lo visual es un apoyo: alto contraste, foco visible y mandos grandes.
+ * La fuente de verdad para quien no ve son el texto y las regiones aria-live.
+ */
+
+:root {
+  --bg: #10131a;
+  --panel: #1b202b;
+  --text: #eef1f6;
+  --muted: #a9b2c3;
+  --accent: #4da3ff;
+  --accent-strong: #1b74e4;
+  --danger: #ff6b6b;
+  --border: #2c3444;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.layout {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin-top: 1.8rem;
+}
+
+p {
+  margin: 0.6rem 0;
+}
+
+/* Solo para lector de pantalla: fuera de la vista pero anunciable. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent-strong);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 0 0 8px 0;
+  z-index: 10;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* --- Formularios y campos --- */
+
+.field {
+  margin: 0.8rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+label {
+  font-weight: 600;
+}
+
+input[type="text"],
+input:not([type]) {
+  font-size: 1rem;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Botones --- */
+
+button {
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 0.7rem 1.1rem;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--accent-strong);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover {
+  filter: brightness(1.1);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button.secondary {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border);
+}
+button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+/* --- Estado y listas --- */
+
+.status {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 600;
+  min-height: 1.4em;
+}
+
+.players {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+}
+.player .name {
+  font-weight: 600;
+}
+.player .meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.player button {
+  margin-left: auto;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* --- Configuración --- */
+
+.config-row {
+  margin: 0.8rem 0;
+}
+.config-legend {
+  font-weight: 600;
+  margin: 0.2rem 0;
+}
+
+#actions {
+  margin-top: 0.5rem;
+}

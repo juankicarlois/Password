@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Password accesible</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#actions">Saltar a las acciones</a>
+
+    <main class="layout">
+      <!-- Vestíbulo: unirse a una sala -->
+      <section id="join-screen" aria-labelledby="join-title">
+        <h1 id="join-title">Password accesible</h1>
+        <p>
+          Un jugador da pistas de una palabra secreta y otro la adivina. Pensado
+          para jugarse escuchando, con lector de pantalla, aunque también se ve.
+        </p>
+        <p>
+          Entra en una sala escribiendo un código (invéntalo y compártelo) y tu
+          nombre. Quien tenga el mismo código jugará contigo. ¿Sin nadie con
+          quien jugar? Entra igual y añade bots para jugar en solitario.
+        </p>
+        <form id="join-form">
+          <div class="field">
+            <label for="room-input">Código de sala</label>
+            <input id="room-input" name="room" autocomplete="off" required
+                   maxlength="12" placeholder="p. ej. CASA" />
+          </div>
+          <div class="field">
+            <label for="name-input">Tu nombre</label>
+            <input id="name-input" name="name" autocomplete="off" required
+                   maxlength="20" placeholder="p. ej. Juanki" />
+          </div>
+          <button type="submit">Entrar en la sala</button>
+        </form>
+        <p id="join-error" class="error" role="alert"></p>
+      </section>
+
+      <!-- Partida (vestíbulo + juego) -->
+      <section id="game-screen" aria-labelledby="game-title" hidden>
+        <h1 id="game-title">Sala <span id="room-label"></span></h1>
+
+        <!-- Región de anuncios en directo para el lector de pantalla -->
+        <div id="announce" class="sr-only" role="status" aria-live="assertive"></div>
+        <!--
+          Repetición de avisos anteriores (Alt+número). Va en su propia región
+          para no pisar ni ser pisada por los anuncios en directo.
+        -->
+        <div id="history" class="sr-only" role="status" aria-live="assertive"></div>
+
+        <p id="status" class="status"></p>
+
+        <section id="config-section" aria-label="Configuración de la partida"></section>
+
+        <h2 id="players-title">Jugadores</h2>
+        <ul id="players" class="players"></ul>
+
+        <h2>Acciones</h2>
+        <div id="actions" tabindex="-1"></div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
