@@ -168,6 +168,12 @@ wss.on('connection', (socket: WebSocket) => {
       case 'setConfig':
         room.setConfig(meta.playerId, msg.config);
         break;
+      case 'chooseTeam':
+        room.chooseTeam(meta.playerId, msg.team);
+        break;
+      case 'setBotTeam':
+        room.setBotTeam(meta.playerId, msg.playerId, msg.team);
+        break;
       case 'clue':
         room.clue(meta.playerId, msg.text);
         break;

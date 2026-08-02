@@ -20,7 +20,8 @@ import {
   type ServerMessage,
 } from '../shared/protocol.js';
 import { validateClue } from '../shared/rules.js';
-import { GameEngine, type EngineEmitter } from './engine.js';
+import { GameEngine, type EngineEmitter, type PlayPlan } from './engine.js';
+import { coopPlan, oneVsOnePlan, duelPlan } from './plans.js';
 import { botClue, botGuess } from './bot.js';
 import { createClaudeProvider } from './ai_claude.js';
 import type { Word } from './words_repo.js';
@@ -158,31 +159,89 @@ export class Room {
     this.broadcastState();
   }
 
+  /** Asigna al jugador su equipo (1 o 2); solo en el vestíbulo. */
+  chooseTeam(playerId: string, team: number): void {
+    if (this.phase !== 'lobby') return;
+    const player = this.players.find((p) => p.id === playerId && !p.isBot);
+    if (player) {
+      player.team = team;
+      this.broadcastState();
+    }
+  }
+
+  /** Asigna a un bot su equipo; solo el anfitrión, en el vestíbulo. */
+  setBotTeam(hostId: string, botId: string, team: number): void {
+    if (this.phase !== 'lobby' || hostId !== this.hostId) return;
+    const bot = this.players.find((p) => p.id === botId && p.isBot);
+    if (bot) {
+      bot.team = team;
+      this.broadcastState();
+    }
+  }
+
   /**
-   * @brief Arranca la partida. Solo el anfitrión puede, y hacen falta al menos
-   *        dos participantes (el Password necesita dador y adivinador).
-   *
-   * Los dos primeros jugadores forman la pareja cooperativa; los roles se
-   * alternan cada palabra.
-   *
+   * @brief Arranca la partida. Solo el anfitrión, y según la estructura hacen
+   *        falta los participantes adecuados. Si no se cumplen, avisa al anfitrión
+   *        y no empieza.
    * @param playerId Quién pide empezar.
    */
   start(playerId: string): void {
     const enLobby = this.phase === 'lobby' || this.phase === 'gameOver';
     if (!enLobby || playerId !== this.hostId) return;
-    if (this.players.length < 2) return;
+
+    const plan = this.buildPlan();
+    if (!plan.ok) {
+      this.transport.sendTo(playerId, { type: 'error', message: plan.reason });
+      return;
+    }
 
     this.phase = 'playing';
     this.lastSummary = null;
     if (this.timedTimer) clearTimeout(this.timedTimer);
-    const participants = this.players.slice(0, 2).map((p) => p.id);
-    this.engine = new GameEngine(participants, this.config, this.words, this.engineEmitter());
+    this.engine = new GameEngine(plan.plan, this.config, this.words, this.engineEmitter());
     this.emit({ kind: 'gameStarted' });
     this.engine.start();
     // Contrarreloj: al agotarse el tiempo, el motor termina la partida.
     if (this.config.ending === 'timed') {
       const engine = this.engine;
       this.timedTimer = setTimeout(() => engine.timeUp(), this.config.durationSeconds * 1000);
+    }
+  }
+
+  /**
+   * @brief Construye el plan de juego según la estructura elegida, validando que
+   *        haya los participantes necesarios.
+   * @return El plan, o el motivo por el que no se puede empezar.
+   */
+  private buildPlan(): { ok: true; plan: PlayPlan } | { ok: false; reason: string } {
+    switch (this.config.structure) {
+      case 'coop': {
+        // Los dos primeros jugadores forman la pareja; los roles se alternan.
+        if (this.players.length < 2) return { ok: false, reason: 'Hacen falta al menos dos participantes.' };
+        const [a, b] = this.players;
+        return { ok: true, plan: coopPlan(a.id, b.id) };
+      }
+      case 'oneVsOne': {
+        if (this.players.length !== 2) {
+          return { ok: false, reason: 'El uno contra uno es para exactamente dos jugadores.' };
+        }
+        const [a, b] = this.players;
+        return { ok: true, plan: oneVsOnePlan({ id: a.id, name: a.name }, { id: b.id, name: b.name }) };
+      }
+      case 'duel': {
+        const team1 = this.players.filter((p) => p.team === 1).map((p) => p.id);
+        const team2 = this.players.filter((p) => p.team === 2).map((p) => p.id);
+        if (this.players.length !== 4 || team1.length !== 2 || team2.length !== 2) {
+          return {
+            ok: false,
+            reason: 'El duelo necesita cuatro jugadores repartidos en dos parejas (dos y dos).',
+          };
+        }
+        return {
+          ok: true,
+          plan: duelPlan([team1[0], team1[1]], [team2[0], team2[1]]),
+        };
+      }
     }
   }
 
@@ -243,7 +302,7 @@ export class Room {
       players,
       config: this.config,
       round: this.phase === 'playing' && this.engine ? this.engine.roundView() : null,
-      score: this.engine ? this.engine.scoreView() : null,
+      scores: this.engine ? this.engine.scoreViews() : [],
       deadline: this.phase === 'playing' && this.engine ? this.engine.deadline : null,
     };
   }

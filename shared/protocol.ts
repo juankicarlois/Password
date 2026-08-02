@@ -115,6 +115,8 @@ export interface RoundView {
   /** Quién da pistas y quién adivina en esta ronda. */
   giverId: string;
   guesserId: string;
+  /** Equipo que puntúa esta palabra (el del adivinador). */
+  teamId: string;
   /** Categoría de la palabra: pista de contexto pública para el adivinador. */
   category: string;
   /** Pistas dadas hasta ahora, en orden (públicas). */
@@ -125,23 +127,40 @@ export interface RoundView {
   waitingFor: Role;
 }
 
-/** Marcador de la partida cooperativa. */
-export interface ScoreView {
+/** Marcador de un equipo (en cooperativa hay uno solo; en competitivo, varios). */
+export interface TeamScoreView {
+  /** Identificador interno del equipo. */
+  id: string;
+  /** Nombre visible (el del jugador en individual, "Equipo N" en parejas). */
+  name: string;
+  /** Miembros del equipo, para que cada cual reconozca el suyo. */
+  memberIds: string[];
   /** Puntos acumulados. */
   points: number;
   /** Palabras acertadas. */
   solved: number;
-  /** Palabras jugadas (acertadas + pasadas). */
+  /** Palabras jugadas por este equipo (acertadas + pasadas). */
   played: number;
+}
+
+/** Resultado de un equipo en el resumen final. */
+export interface TeamResultView {
+  id: string;
+  name: string;
+  points: number;
+  solved: number;
 }
 
 /** Resumen final de la partida, para anunciarlo y pintarlo al terminar. */
 export interface GameSummaryView {
-  solved: number;
+  /** Resultado por equipo. */
+  teams: TeamResultView[];
+  /** Palabras jugadas en total. */
   played: number;
-  points: number;
   /** Pistas de media por palabra acertada (0 si no se acertó ninguna). */
   avgClues: number;
+  /** Equipo ganador; null si hay empate o la partida es cooperativa. */
+  winnerTeamId: string | null;
 }
 
 /** Vista pública completa del estado de la sala. */
@@ -154,8 +173,8 @@ export interface GameView {
   config: GameConfig;
   /** Ronda en curso mientras se juega; null en el vestíbulo y al terminar. */
   round: RoundView | null;
-  /** Marcador mientras se juega; null en el vestíbulo. */
-  score: ScoreView | null;
+  /** Marcador por equipo mientras se juega; vacío en el vestíbulo. */
+  scores: TeamScoreView[];
   /** Instante (epoch ms) en que acaba el contrarreloj; null si no es por tiempo. */
   deadline: number | null;
 }
@@ -186,6 +205,8 @@ export type ClientMessage =
   | { type: 'addBot'; difficulty: BotDifficulty }
   | { type: 'removeBot'; playerId: string }
   | { type: 'setConfig'; config: Partial<GameConfig> }
+  | { type: 'chooseTeam'; team: number }
+  | { type: 'setBotTeam'; playerId: string; team: number }
   | { type: 'clue'; text: string }
   | { type: 'guess'; text: string }
   | { type: 'pass' };

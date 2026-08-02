@@ -333,27 +333,45 @@ function renderStatus(state: GameView): void {
       }
       const rol = round.giverId === myId ? 'das pistas' : round.guesserId === myId ? 'adivinas' : 'miras';
       const cual = round.total > 0 ? `Palabra ${round.index} de ${round.total}` : `Palabra ${round.index}`;
-      const puntos = state.score
-        ? round.total > 0
-          ? ` Puntos: ${state.score.points} (${state.score.solved} de ${round.total}).`
-          : ` Puntos: ${state.score.points} (${state.score.solved} resueltas).`
-        : '';
-      text = `${cual}. Categoría: ${round.category}. Tú ${rol}.${puntos}`;
+      text = `${cual}. Categoría: ${round.category}. Tú ${rol}.${scoreboardSuffix(state)}`;
       break;
     }
     case 'gameOver':
-      text = state.score
-        ? `Fin de la partida. ${state.score.solved} de ${state.score.played} acertadas, ${state.score.points} puntos.`
-        : 'Fin de la partida.';
+      text = `Fin de la partida.${scoreboardSuffix(state)}`;
       break;
   }
   statusLine.textContent = text;
 }
 
+/**
+ * Coletilla de marcador para la línea de estado. En cooperativa, los puntos de la
+ * pareja; en competitivo, un marcador compacto de todos los equipos.
+ */
+function scoreboardSuffix(state: GameView): string {
+  if (state.scores.length === 0) return '';
+  if (state.scores.length === 1) {
+    const t = state.scores[0];
+    return ` Puntos: ${t.points} (${t.solved} acertadas).`;
+  }
+  return ` Marcador: ${state.scores.map((t) => `${t.name}, ${t.points}`).join('; ')}.`;
+}
+
 function renderPlayers(state: GameView): void {
+  // En el vestíbulo se listan los jugadores (con su equipo y mandos); en partida,
+  // el marcador por equipo, que es lo que de verdad compite.
+  if (state.phase === 'lobby') {
+    renderLobbyPlayers(state);
+  } else {
+    renderScoreboard(state);
+  }
+}
+
+/** Lista de jugadores del vestíbulo, con selección de pareja en el duelo. */
+function renderLobbyPlayers(state: GameView): void {
   playersTitle.textContent = 'Jugadores';
   playersList.replaceChildren();
   const soyAnfitrion = state.hostId != null && state.hostId === myId;
+  const esDuelo = state.config.structure === 'duel';
 
   for (const player of state.players) {
     const li = document.createElement('li');
@@ -371,6 +389,13 @@ function renderPlayers(state: GameView): void {
     name.textContent = player.name + tag;
     li.append(name);
 
+    if (esDuelo) {
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = player.team ? `Equipo ${player.team}` : 'sin equipo';
+      li.append(meta);
+    }
+
     if (!player.connected && !player.isBot) {
       const meta = document.createElement('span');
       meta.className = 'meta';
@@ -378,12 +403,62 @@ function renderPlayers(state: GameView): void {
       li.append(meta);
     }
 
+    // En el duelo se elige la pareja: tú la tuya; el anfitrión, la de los bots.
+    if (esDuelo && (player.id === myId || (player.isBot && soyAnfitrion))) {
+      li.append(buildTeamPicker(player.id, player.team, player.id === myId));
+    }
+
     // El anfitrión puede quitar bots durante el vestíbulo.
-    if (player.isBot && soyAnfitrion && state.phase === 'lobby') {
+    if (player.isBot && soyAnfitrion) {
       const remove = button('Quitar', () => net.send({ type: 'removeBot', playerId: player.id }), 'secondary');
       remove.setAttribute('aria-label', `Quitar ${player.name}`);
       li.append(remove);
     }
+
+    playersList.append(li);
+  }
+}
+
+/** Botones para elegir el equipo (1 o 2) de un jugador o bot en el duelo. */
+function buildTeamPicker(playerId: string, current: number | null, isMe: boolean): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'team-picker';
+  for (let n = 1; n <= 2; n++) {
+    const btn = button(
+      `Equipo ${n}`,
+      () => net.send(isMe ? { type: 'chooseTeam', team: n } : { type: 'setBotTeam', playerId, team: n }),
+      'secondary',
+    );
+    btn.setAttribute('aria-label', `Poner en el equipo ${n}`);
+    if (current === n) btn.setAttribute('aria-pressed', 'true');
+    wrap.append(btn);
+  }
+  return wrap;
+}
+
+/** Marcador por equipo durante la partida y al terminar. */
+function renderScoreboard(state: GameView): void {
+  const varios = state.scores.length > 1;
+  playersTitle.textContent = varios ? 'Marcador' : 'Jugadores';
+  playersList.replaceChildren();
+
+  for (const team of state.scores) {
+    const li = document.createElement('li');
+    const activo = state.round?.teamId === team.id;
+    li.className = 'player' + (activo ? ' current' : '');
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    const mio = myId != null && team.memberIds.includes(myId);
+    // En parejas se nombran los miembros; en individual el nombre ya es la persona.
+    const quienes = varios ? team.memberIds.map((id) => nameOf(id)).join(' y ') : '';
+    name.textContent = team.name + (mio ? ' (tú)' : '') + (quienes && quienes !== team.name ? ` · ${quienes}` : '');
+    li.append(name);
+
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = `${team.points} punto${team.points === 1 ? '' : 's'}, ${team.solved} acertada${team.solved === 1 ? '' : 's'}`;
+    li.append(meta);
 
     playersList.append(li);
   }
@@ -433,6 +508,8 @@ function renderConfig(state: GameView): void {
   configSection.append(
     choiceRow<GameStructure>('Estructura', state.config.structure, [
       { id: 'coop', label: 'Cooperativa' },
+      { id: 'oneVsOne', label: 'Uno contra uno' },
+      { id: 'duel', label: 'Duelo de parejas' },
     ], (structure) => net.send({ type: 'setConfig', config: { structure } })),
     choiceRow<GameEnding>('Fin de partida', state.config.ending, [
       { id: 'wordCount', label: 'Tanda de palabras' },
@@ -459,10 +536,17 @@ function renderConfig(state: GameView): void {
     );
   }
 
-  const proximamente = document.createElement('p');
-  proximamente.className = 'hint';
-  proximamente.textContent = 'El duelo de parejas y el uno contra uno llegan en la próxima versión.';
-  configSection.append(proximamente);
+  // Requisitos de participantes según la estructura, para saber qué falta.
+  const req = document.createElement('p');
+  req.className = 'hint';
+  if (state.config.structure === 'oneVsOne') {
+    req.textContent = 'Uno contra uno: exactamente dos jugadores; puntúa quien adivina.';
+  } else if (state.config.structure === 'duel') {
+    req.textContent = 'Duelo: cuatro jugadores repartidos en dos parejas (dos y dos). Asigna el equipo de cada uno abajo.';
+  } else {
+    req.textContent = 'Cooperativa: dos jugadores que colaboran con un marcador común.';
+  }
+  configSection.append(req);
 }
 
 /**
@@ -754,19 +838,35 @@ function formField(
 
 // --- Resumen final ----------------------------------------------------------
 
+/** Nombre del equipo ganador, o null si no lo hay. */
+function winnerName(s: GameSummaryView): string | null {
+  if (!s.winnerTeamId) return null;
+  return s.teams.find((t) => t.id === s.winnerTeamId)?.name ?? null;
+}
+
 /** Frases del resumen; se comparten entre la voz y el panel visible. */
 function summaryLines(s: GameSummaryView): string[] {
-  const lines = [
-    `Palabras acertadas: ${s.solved} de ${s.played}.`,
-    `Puntos: ${s.points}.`,
-  ];
-  if (s.solved > 0) lines.push(`Pistas de media por acierto: ${s.avgClues}.`);
+  const lines: string[] = [];
+  if (s.teams.length > 1) {
+    // Competitivo: primero el resultado (ganador o empate), luego cada equipo.
+    const ganador = winnerName(s);
+    lines.push(ganador ? `Gana ${ganador}.` : 'Empate.');
+    for (const t of s.teams) {
+      lines.push(`${t.name}: ${t.points} punto${t.points === 1 ? '' : 's'}, ${t.solved} acertada${t.solved === 1 ? '' : 's'}.`);
+    }
+  } else {
+    // Cooperativo: los datos de la única pareja.
+    const t = s.teams[0];
+    if (t) lines.push(`Palabras acertadas: ${t.solved} de ${s.played}. Puntos: ${t.points}.`);
+  }
+  if (s.avgClues > 0) lines.push(`Pistas de media por acierto: ${s.avgClues}.`);
   return lines;
 }
 
 /** Texto hablado del resumen (una sola frase), para el lector al acabar. */
 function spokenSummary(s: GameSummaryView): string {
-  return `Se acabó. Vuestro resumen: ${summaryLines(s).join(' ')}`;
+  const cabecera = winnerName(s) ? `¡${winnerName(s)} gana!` : 'Se acabó.';
+  return `${cabecera} Resumen: ${summaryLines(s).join(' ')}`;
 }
 
 /** Panel visible del resumen para la pantalla de fin de partida. */

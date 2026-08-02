@@ -19,8 +19,9 @@ lectores. Los únicos atajos propios usan `Alt`, que el lector no intercepta.
 Todo son campos y botones: código de sala, nombre, «Entrar en la sala»,
 «Cómo se juega» y, para quien crea la sala, los botones de configuración
 (reglas de pista, estructura, fin, número de palabras o duración), «Añadir bot»,
-«Quitar» y «Empezar partida». Se recorren con `Tab` y se activan con `Intro` o
-`Espacio`.
+«Quitar» y «Empezar partida». En el modo **duelo de parejas** aparecen además los
+botones «Equipo 1» / «Equipo 2» para asignar la pareja de cada jugador o bot. Se
+recorren con `Tab` y se activan con `Intro` o `Espacio`.
 
 ## En partida
 
