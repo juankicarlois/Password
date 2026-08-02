@@ -23,7 +23,11 @@ import {
   type RoundView,
 } from '../shared/protocol.js';
 import { Net } from './net.js';
+import { SoundEngine } from './audio.js';
 import { MessageHistory, historyIndexFromKey } from './history.js';
+
+/** Motor de efectos de sonido; acompaña a los anuncios de voz, sin sustituirlos. */
+const sound = new SoundEngine();
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -42,6 +46,7 @@ const announceRegion = $('announce');
 const historyRegion = $('history');
 const statusLine = $('status');
 const clockLine = $('clock');
+const muteButton = $<HTMLButtonElement>('btn-mute');
 const playersTitle = $('players-title');
 const playersList = $('players');
 const configSection = $('config-section');
@@ -180,16 +185,23 @@ function nameOf(playerId: string): string {
 function handleEvent(event: GameEvent): void {
   switch (event.kind) {
     case 'playerJoined':
-      if (event.playerId !== myId) announce(`${event.name} se ha unido a la sala.`);
+      if (event.playerId !== myId) {
+        sound.play('join');
+        announce(`${event.name} se ha unido a la sala.`);
+      }
       break;
     case 'playerLeft':
       announce(`${nameOf(event.playerId)} ha salido de la sala.`);
       break;
     case 'gameStarted':
       lastSummary = null;
+      sound.play('start');
       announce('¡Empieza la partida!');
       break;
     case 'roundStarted': {
+      // El comienzo de partida ya suena con 'start'; a partir de la segunda palabra
+      // se marca el cambio de ronda para no encadenar dos efectos a la vez.
+      if (event.index > 1) sound.play('round');
       const daPistas = event.giverId === myId ? 'Tú das las pistas' : `Da pistas ${nameOf(event.giverId)}`;
       const adivina = event.guesserId === myId ? 'tú adivinas' : `adivina ${nameOf(event.guesserId)}`;
       const cual = event.total > 0 ? `Palabra ${event.index} de ${event.total}` : `Palabra ${event.index}`;
@@ -199,11 +211,15 @@ function handleEvent(event: GameEvent): void {
     case 'clueGiven':
       // A quien da la pista se lo confirma su propio repintado; a los demás se les
       // canta la pista nueva, que es lo que necesita el que adivina.
-      if (event.byPlayerId !== myId) announce(`Pista: ${event.clue}.`);
+      if (event.byPlayerId !== myId) {
+        sound.play('clue');
+        announce(`Pista: ${event.clue}.`);
+      }
       break;
     case 'guessMade':
       // El acierto lo anuncia `wordSolved` (con la palabra); aquí solo los fallos.
       if (!event.correct) {
+        sound.play('wrong');
         announce(
           event.byPlayerId === myId
             ? `${event.text}: no es. Sigue con más pistas.`
@@ -212,6 +228,7 @@ function handleEvent(event: GameEvent): void {
       }
       break;
     case 'wordSolved':
+      sound.play('correct');
       announce(`¡Correcto! La palabra era ${event.word}. ${event.points} punto${event.points === 1 ? '' : 's'}.`);
       break;
     case 'wordSkipped':
@@ -219,6 +236,7 @@ function handleEvent(event: GameEvent): void {
       break;
     case 'gameOver':
       // El resumen llega en su propio mensaje y ya se anuncia allí.
+      sound.play('gameover');
       break;
   }
 }
@@ -263,10 +281,14 @@ function startCountdown(deadline: number): void {
     for (const t of TIME_WARNINGS) {
       if (remaining <= t && remaining > 0 && !announcedThresholds.has(t)) {
         announcedThresholds.add(t);
+        sound.play('warn');
         announce(`Quedan ${t} segundos.`);
       }
     }
-    if (remaining <= 0) stopCountdown(false); // el servidor cierra la partida
+    if (remaining <= 0) {
+      sound.play('timeup');
+      stopCountdown(false); // el servidor cierra la partida
+    }
   };
   tick();
   countdownTimer = window.setInterval(tick, 500);
@@ -799,6 +821,20 @@ document.addEventListener('keydown', (ev) => {
     }
   }
 });
+
+// --- Silenciar / activar sonidos --------------------------------------------
+
+/** Refleja en el botón si los sonidos están activos o silenciados. */
+function updateMuteButton(): void {
+  muteButton.textContent = sound.isMuted ? 'Activar sonidos' : 'Silenciar sonidos';
+  muteButton.setAttribute('aria-pressed', String(sound.isMuted));
+}
+muteButton.addEventListener('click', () => {
+  const muted = sound.toggleMuted();
+  updateMuteButton();
+  announce(muted ? 'Sonidos silenciados.' : 'Sonidos activados.');
+});
+updateMuteButton();
 
 function button(label: string, onClick: () => void, variant = ''): HTMLButtonElement {
   const btn = document.createElement('button');

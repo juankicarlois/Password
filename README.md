@@ -62,6 +62,18 @@ En `scripts/` hay dos accesos directos que hacen todo lo anterior de una vez:
    - **Fin**: tanda de palabras o contrarreloj.
 3. **Empieza** cuando estéis. Uno da pistas de la palabra secreta y otro adivina.
 
+## Sonidos
+
+El juego acompaña los avisos de voz con efectos cortos (acierto, fallo, pista
+nueva, cambio de palabra, inicio y fin de partida, aviso de tiempo, fin de
+tiempo y entrada de jugador). Son un **apoyo**, no la vía principal: suenan a
+volumen moderado para no tapar al lector de pantalla y se pueden silenciar con el
+botón «Silenciar sonidos» (la preferencia se recuerda).
+
+Los efectos (`public/sounds/`) están recortados de la librería general de efectos
+de sonido **Sound Ideas, Series 2000**. Si se distribuye el juego públicamente,
+revisa las condiciones de licencia de esa librería.
+
 ## Accesibilidad
 
 - Todo lo importante se anuncia por voz en una región `aria-live`.
