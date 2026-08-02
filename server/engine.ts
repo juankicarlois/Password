@@ -110,6 +110,15 @@ export class GameEngine {
     return this.deck[this.index];
   }
 
+  /**
+   * @brief Palabra en juego, para uso interno del servidor (la IA que da pistas
+   *        necesita conocerla). No se expone nunca a los clientes.
+   * @return La palabra actual, o null si no hay ronda activa.
+   */
+  wordInPlay(): Word | null {
+    return this.done ? null : (this.currentWord ?? null);
+  }
+
   /** Id del dador de la ronda actual (los roles se alternan cada palabra). */
   private get giverId(): string {
     return this.participants[this.index % 2] ?? this.participants[0];
