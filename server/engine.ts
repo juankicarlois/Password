@@ -71,6 +71,8 @@ export class GameEngine {
   /** Suma de pistas usadas en las palabras acertadas, para la media final. */
   private cluesOnSolved = 0;
   private done = false;
+  /** Instante (epoch ms) en que acaba el contrarreloj; null si no es por tiempo. */
+  private deadlineMs: number | null = null;
 
   /**
    * @param participants Ids de los dos participantes de la pareja cooperativa.
@@ -86,11 +88,19 @@ export class GameEngine {
     private readonly emitter: EngineEmitter,
     random: () => number = Math.random,
   ) {
-    this.deck = dealWords(words, config.wordCount, random);
+    // Por tiempo (contrarreloj) se barajan todas las palabras: la tanda no la
+    // limita un número sino el reloj. Por número, solo las de la tanda.
+    this.deck =
+      config.ending === 'timed'
+        ? dealWords(words, words.length, random)
+        : dealWords(words, config.wordCount, random);
   }
 
   /** Arranca la partida repartiendo la primera palabra. */
   start(): void {
+    if (this.config.ending === 'timed') {
+      this.deadlineMs = Date.now() + this.config.durationSeconds * 1000;
+    }
     if (this.deck.length === 0) {
       this.finish();
       return;
@@ -101,6 +111,16 @@ export class GameEngine {
   /** true si la partida ya terminó. */
   get isFinished(): boolean {
     return this.done;
+  }
+
+  /** Instante (epoch ms) en que acaba el contrarreloj, o null si no es por tiempo. */
+  get deadline(): number | null {
+    return this.deadlineMs;
+  }
+
+  /** Fuerza el fin de la partida porque se agotó el tiempo. */
+  timeUp(): void {
+    this.finish();
   }
 
   // --- Acceso al estado para la vista de la sala ----------------------------
@@ -135,7 +155,7 @@ export class GameEngine {
     if (this.done || !word) return null;
     return {
       index: this.index + 1,
-      total: this.deck.length,
+      total: this.config.ending === 'timed' ? 0 : this.deck.length,
       giverId: this.giverId,
       guesserId: this.guesserId,
       category: word.categoria,
@@ -243,7 +263,7 @@ export class GameEngine {
     this.emitter.event({
       kind: 'roundStarted',
       index: this.index + 1,
-      total: this.deck.length,
+      total: this.config.ending === 'timed' ? 0 : this.deck.length,
       category: word.categoria,
       giverId: this.giverId,
       guesserId: this.guesserId,

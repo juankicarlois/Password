@@ -156,6 +156,8 @@ export interface GameView {
   round: RoundView | null;
   /** Marcador mientras se juega; null en el vestíbulo. */
   score: ScoreView | null;
+  /** Instante (epoch ms) en que acaba el contrarreloj; null si no es por tiempo. */
+  deadline: number | null;
 }
 
 // --- Eventos puntuales (disparan sonido y anuncio, no pintan estado) ---------

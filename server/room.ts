@@ -67,6 +67,8 @@ export class Room {
   private lastSummary: GameSummaryView | null = null;
   /** Marca del turno de bot ya programado, para no programarlo dos veces. */
   private pendingBotToken: string | null = null;
+  /** Temporizador del contrarreloj, para poder cancelarlo al terminar. */
+  private timedTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     public readonly code: string,
@@ -172,10 +174,16 @@ export class Room {
 
     this.phase = 'playing';
     this.lastSummary = null;
+    if (this.timedTimer) clearTimeout(this.timedTimer);
     const participants = this.players.slice(0, 2).map((p) => p.id);
     this.engine = new GameEngine(participants, this.config, this.words, this.engineEmitter());
     this.emit({ kind: 'gameStarted' });
     this.engine.start();
+    // Contrarreloj: al agotarse el tiempo, el motor termina la partida.
+    if (this.config.ending === 'timed') {
+      const engine = this.engine;
+      this.timedTimer = setTimeout(() => engine.timeUp(), this.config.durationSeconds * 1000);
+    }
   }
 
   // --- Acciones de juego (delegadas al motor) -------------------------------
@@ -205,6 +213,10 @@ export class Room {
       finished: (summary) => {
         this.phase = 'gameOver';
         this.lastSummary = summary;
+        if (this.timedTimer) {
+          clearTimeout(this.timedTimer);
+          this.timedTimer = null;
+        }
         this.transport.broadcast({ type: 'summary', summary });
         this.emit({ kind: 'gameOver' });
         this.broadcastState();
@@ -232,6 +244,7 @@ export class Room {
       config: this.config,
       round: this.phase === 'playing' && this.engine ? this.engine.roundView() : null,
       score: this.engine ? this.engine.scoreView() : null,
+      deadline: this.phase === 'playing' && this.engine ? this.engine.deadline : null,
     };
   }
 

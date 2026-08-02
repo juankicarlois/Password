@@ -41,6 +41,7 @@ const roomLabel = $('room-label');
 const announceRegion = $('announce');
 const historyRegion = $('history');
 const statusLine = $('status');
+const clockLine = $('clock');
 const playersTitle = $('players-title');
 const playersList = $('players');
 const configSection = $('config-section');
@@ -57,6 +58,11 @@ let lastActionKey = '';
 let secretWord: string | null = null;
 /** Resumen de la última partida, para pintarlo en la pantalla de fin. */
 let lastSummary: GameSummaryView | null = null;
+/** Estado de la cuenta atrás del contrarreloj. */
+let countdownTimer: number | null = null;
+let currentDeadline: number | null = null;
+/** Umbrales de tiempo (segundos) ya anunciados en esta cuenta atrás. */
+let announcedThresholds = new Set<number>();
 /** Alterna un carácter invisible para forzar que el lector repita anuncios. */
 let announceToggle = false;
 let historyToggle = false;
@@ -186,7 +192,8 @@ function handleEvent(event: GameEvent): void {
     case 'roundStarted': {
       const daPistas = event.giverId === myId ? 'Tú das las pistas' : `Da pistas ${nameOf(event.giverId)}`;
       const adivina = event.guesserId === myId ? 'tú adivinas' : `adivina ${nameOf(event.guesserId)}`;
-      announce(`Palabra ${event.index} de ${event.total}. Categoría: ${event.category}. ${daPistas} y ${adivina}.`);
+      const cual = event.total > 0 ? `Palabra ${event.index} de ${event.total}` : `Palabra ${event.index}`;
+      announce(`${cual}. Categoría: ${event.category}. ${daPistas} y ${adivina}.`);
       break;
     }
     case 'clueGiven':
@@ -220,9 +227,67 @@ function handleEvent(event: GameEvent): void {
 
 function render(state: GameView): void {
   renderStatus(state);
+  renderClock(state);
   renderPlayers(state);
   renderConfig(state);
   renderActions(state);
+}
+
+/**
+ * Gestiona la cuenta atrás del contrarreloj: la arranca cuando empieza una
+ * partida por tiempo y la para al terminar. El reloj se actualiza solo, al
+ * margen de los repintados de estado, y anuncia por voz los últimos avisos.
+ */
+function renderClock(state: GameView): void {
+  const timed = state.phase === 'playing' && state.config.ending === 'timed' && state.deadline != null;
+  if (!timed) {
+    stopCountdown();
+    return;
+  }
+  if (state.deadline !== currentDeadline) {
+    currentDeadline = state.deadline;
+    startCountdown(state.deadline!);
+  }
+}
+
+/** Segundos en los que se avisa por voz de cuánto queda. */
+const TIME_WARNINGS = [60, 30, 10];
+
+function startCountdown(deadline: number): void {
+  stopCountdown();
+  announcedThresholds = new Set();
+  clockLine.hidden = false;
+  const tick = (): void => {
+    const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+    clockLine.textContent = `Tiempo restante: ${formatTime(remaining)}.`;
+    for (const t of TIME_WARNINGS) {
+      if (remaining <= t && remaining > 0 && !announcedThresholds.has(t)) {
+        announcedThresholds.add(t);
+        announce(`Quedan ${t} segundos.`);
+      }
+    }
+    if (remaining <= 0) stopCountdown(false); // el servidor cierra la partida
+  };
+  tick();
+  countdownTimer = window.setInterval(tick, 500);
+}
+
+function stopCountdown(hide = true): void {
+  if (countdownTimer !== null) {
+    window.clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  if (hide) {
+    clockLine.hidden = true;
+    currentDeadline = null;
+  }
+}
+
+/** Formatea segundos como minutos y segundos (p. ej. 1:05). */
+function formatTime(totalSeconds: number): string {
+  const min = Math.floor(totalSeconds / 60);
+  const sec = totalSeconds % 60;
+  return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
 function renderStatus(state: GameView): void {
@@ -238,8 +303,13 @@ function renderStatus(state: GameView): void {
         break;
       }
       const rol = round.giverId === myId ? 'das pistas' : round.guesserId === myId ? 'adivinas' : 'miras';
-      const puntos = state.score ? ` Puntos: ${state.score.points} (${state.score.solved} de ${round.total}).` : '';
-      text = `Palabra ${round.index} de ${round.total}. Categoría: ${round.category}. Tú ${rol}.${puntos}`;
+      const cual = round.total > 0 ? `Palabra ${round.index} de ${round.total}` : `Palabra ${round.index}`;
+      const puntos = state.score
+        ? round.total > 0
+          ? ` Puntos: ${state.score.points} (${state.score.solved} de ${round.total}).`
+          : ` Puntos: ${state.score.points} (${state.score.solved} resueltas).`
+        : '';
+      text = `${cual}. Categoría: ${round.category}. Tú ${rol}.${puntos}`;
       break;
     }
     case 'gameOver':
@@ -320,16 +390,88 @@ function renderConfig(state: GameView): void {
       { id: 'classic', label: 'Clásica: una palabra' },
       { id: 'phrase', label: 'Frase corta' },
     ], (clueRule) => net.send({ type: 'setConfig', config: { clueRule } })),
+  );
+
+  // Con "frase corta", cuántas palabras se permiten como máximo por pista.
+  if (state.config.clueRule === 'phrase') {
+    configSection.append(
+      numberRow('Palabras por pista', state.config.maxClueWords, [2, 3, 4], (n) =>
+        net.send({ type: 'setConfig', config: { maxClueWords: n } }),
+      ),
+    );
+  }
+
+  configSection.append(
     choiceRow<GameStructure>('Estructura', state.config.structure, [
       { id: 'coop', label: 'Cooperativa' },
-      { id: 'duel', label: 'Duelo de parejas' },
-      { id: 'oneVsOne', label: 'Uno contra uno' },
     ], (structure) => net.send({ type: 'setConfig', config: { structure } })),
     choiceRow<GameEnding>('Fin de partida', state.config.ending, [
       { id: 'wordCount', label: 'Tanda de palabras' },
       { id: 'timed', label: 'Contrarreloj' },
     ], (ending) => net.send({ type: 'setConfig', config: { ending } })),
   );
+
+  // El detalle del fin: cuántas palabras (tanda) o cuánto tiempo (contrarreloj).
+  if (state.config.ending === 'wordCount') {
+    configSection.append(
+      numberRow('Cuántas palabras', state.config.wordCount, [5, 10, 15, 20], (n) =>
+        net.send({ type: 'setConfig', config: { wordCount: n } }),
+      ),
+    );
+  } else {
+    configSection.append(
+      numberRow(
+        'Duración',
+        state.config.durationSeconds,
+        [60, 120, 180, 300],
+        (n) => net.send({ type: 'setConfig', config: { durationSeconds: n } }),
+        (n) => `${n / 60} min`,
+      ),
+    );
+  }
+
+  const proximamente = document.createElement('p');
+  proximamente.className = 'hint';
+  proximamente.textContent = 'El duelo de parejas y el uno contra uno llegan en la próxima versión.';
+  configSection.append(proximamente);
+}
+
+/**
+ * @brief Fila para elegir un valor numérico entre varios (mismo patrón accesible
+ *        que `choiceRow`, con `aria-pressed`).
+ *
+ * @param label Nombre del grupo.
+ * @param current Valor seleccionado ahora.
+ * @param values Valores posibles.
+ * @param onPick Qué hacer al elegir uno.
+ * @param format Cómo mostrar cada valor (por defecto, el número tal cual).
+ */
+function numberRow(
+  label: string,
+  current: number,
+  values: readonly number[],
+  onPick: (value: number) => void,
+  format: (value: number) => string = (v) => String(v),
+): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'config-row';
+  const legend = document.createElement('p');
+  legend.className = 'config-legend';
+  legend.id = `cfg-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  legend.textContent = label;
+  wrap.append(legend);
+
+  const row = document.createElement('div');
+  row.className = 'action-row';
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-labelledby', legend.id);
+  for (const value of values) {
+    const btn = button(format(value), () => onPick(value), 'secondary');
+    if (value === current) btn.setAttribute('aria-pressed', 'true');
+    row.append(btn);
+  }
+  wrap.append(row);
+  return wrap;
 }
 
 /** Frase con la configuración elegida, para informar a quien no es anfitrión. */
@@ -463,7 +605,11 @@ function renderPlaying(round: RoundView): HTMLElement | null {
     if (round.waitingFor === 'giver') {
       const reglaHint = document.createElement('p');
       reglaHint.className = 'hint';
-      reglaHint.textContent = 'Escribe una pista de una sola palabra que ayude a adivinar, sin decir la palabra secreta.';
+      const rule = lastState?.config;
+      reglaHint.textContent =
+        rule && rule.clueRule === 'phrase'
+          ? `Escribe una pista de hasta ${rule.maxClueWords} palabras que ayude a adivinar, sin decir la palabra secreta.`
+          : 'Escribe una pista de una sola palabra que ayude a adivinar, sin decir la palabra secreta.';
       const field = formField('Tu pista', 'Enviar pista', (value) => net.send({ type: 'clue', text: value }));
       actions.append(reglaHint, field.wrap);
       actions.append(passButton());

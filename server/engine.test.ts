@@ -49,6 +49,9 @@ function bank(...palabras: string[]): Word[] {
 /** Configuración de dos palabras, clásica, para los tests. */
 const config: GameConfig = { ...DEFAULT_CONFIG, clueRule: 'classic', wordCount: 2 };
 
+/** Configuración por tiempo (contrarreloj). */
+const timedConfig: GameConfig = { ...DEFAULT_CONFIG, ending: 'timed', durationSeconds: 120 };
+
 /** El random fijo hace el reparto determinista. */
 const fixedRandom = () => 0;
 
@@ -124,6 +127,18 @@ test('pasar salta la palabra sin puntuar', () => {
   assert.ok(fe.events.some((e) => e.kind === 'wordSkipped'));
   assert.equal(engine.scoreView().solved, 0);
   assert.equal(engine.scoreView().played, 1);
+});
+
+test('contrarreloj: sin número fijo de palabras y termina al agotarse el tiempo', () => {
+  const fe = new FakeEmitter();
+  const engine = new GameEngine(['A', 'B'], timedConfig, bank('gato', 'perro', 'coche'), fe, fixedRandom);
+  engine.start();
+  // Por tiempo, la ronda no anuncia "de N": total 0.
+  assert.equal(engine.roundView()?.total, 0);
+  assert.ok(engine.deadline && engine.deadline > Date.now());
+  engine.timeUp();
+  assert.ok(engine.isFinished);
+  assert.ok(fe.summary);
 });
 
 test('solo el dador da pistas y solo el adivinador adivina', () => {
