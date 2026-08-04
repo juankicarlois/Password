@@ -5,7 +5,7 @@ adivina. **Accesible con lectores de pantalla** (NVDA/JAWS/VoiceOver) y jugable
 también por videntes. Web: servidor Node + TypeScript con WebSocket (`server/`),
 cliente TypeScript + DOM plano (`client/`), tipos y reglas compartidos
 (`shared/`), banco de palabras en JSON (`content/`). Se juega en solitario contra
-la IA o en red (salas por código). Diseño en `docs/DISENO.md`; puesta en marcha y
+la IA o en red (salas por código). Puesta en marcha y
 controles en `README.md`.
 
 ## Accesibilidad — reglas OBLIGATORIAS

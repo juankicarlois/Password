@@ -5,9 +5,10 @@ Juego del **Password** pensado para jugarse **escuchando**, con lector de pantal
 secreta y otro intenta adivinarla. Se puede jugar en solitario contra la IA o en
 red con otras personas (salas por código).
 
-> Estado: **en desarrollo**. Ahora mismo funciona el vestíbulo (crear/unirse a
-> sala, añadir bots, configurar la partida y empezar). El juego de pistas se está
-> construyendo por fases; ver `docs/` y el plan de desarrollo.
+> Estado: **jugable y completo**. Vestíbulo con salas por código, partida
+> cooperativa, uno contra uno y duelo de parejas; pistas de una palabra o de
+> frase corta; tanda de palabras o contrarreloj; bots para jugar en solitario;
+> banco de 188 palabras; sonidos, manual y lectura en voz alta opcional.
 
 ## Puesta en marcha
 
