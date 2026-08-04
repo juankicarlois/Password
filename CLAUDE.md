@@ -17,6 +17,10 @@ se rebajan sin motivo:
   `aria-live` (`#announce`); la repetición a demanda (Alt+número) a otra región
   aparte (`#history`) para que no se pisen. Nada del juego depende de ver la
   pantalla.
+- **Las regiones `aria-live` cuelgan de `main`, nunca de una pantalla.** Una
+  región dentro de una sección con `hidden` **no se anuncia**: ya pasó una vez y
+  los avisos del vestíbulo se perdían en silencio. No las metas dentro de
+  `#join-screen`, `#game-screen` ni `#help-screen`.
 - **Botones, no teclas sueltas**, para las acciones. Los lectores en modo
   exploración capturan las letras sueltas como navegación rápida y no llegarían a
   la página. Los atajos solo con **Alt+tecla** (Alt no lo intercepta el lector).
