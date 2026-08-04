@@ -17,7 +17,7 @@ lectores. Los únicos atajos propios usan `Alt`, que el lector no intercepta.
 ## Vestíbulo (entrar y configurar)
 
 Todo son campos y botones: código de sala, nombre, «Entrar en la sala»,
-«Cómo se juega» y, para quien crea la sala, los botones de configuración
+«Cómo se juega», «Tema» y, para quien crea la sala, los botones de configuración
 (reglas de pista, estructura, fin, número de palabras o duración), «Añadir bot»,
 «Quitar» y «Empezar partida». En el modo **duelo de parejas** aparecen además los
 botones «Equipo 1» / «Equipo 2» para asignar la pareja de cada jugador o bot. Se
@@ -32,6 +32,7 @@ recorren con `Tab` y se activan con `Intro` o `Espacio`.
 | «Pasar palabra» | Salta la palabra actual (no puntúa). |
 | «Silenciar sonidos» / «Activar sonidos» | Quita o pone los efectos de sonido. |
 | «Leer en voz alta» / «No leer en voz alta» | Activa o desactiva que el juego lea los avisos (para quien juega sin lector de pantalla). |
+| «Tema: automático / claro / oscuro» | Cambia el aspecto. Cada pulsación pasa al siguiente: automático (el del sistema), claro, oscuro. |
 | «Cómo se juega» | Abre el manual. |
 
 ## Manual de ayuda

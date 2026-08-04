@@ -8,44 +8,108 @@
  * El tema se adapta al sistema (claro/oscuro) con prefers-color-scheme.
  */
 
+/*
+ * Las dos paletas, con sus colores escritos UNA sola vez. Debajo se eligen
+ * según el tema: automático (lo que diga el sistema) o el que haya forzado el
+ * jugador con el botón, que pone `data-theme` en el elemento raíz.
+ */
 :root {
-  --bg: #0e1117;
-  --bg-2: #131a24;
-  --panel: #171c26;
-  --panel-2: #1e2532;
-  --text: #eef1f6;
-  --muted: #9aa4b7;
-  --accent: #5aa9ff;
-  --accent-strong: #2563eb;
-  --danger: #f87171;
-  --good: #34d399;
-  --good-bg: rgba(52, 211, 153, 0.14);
-  --bad: #f87171;
-  --bad-bg: rgba(248, 113, 113, 0.14);
-  --border: #29313f;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* Paleta oscura */
+  --dark-bg: #0e1117;
+  --dark-bg-2: #131a24;
+  --dark-panel: #171c26;
+  --dark-panel-2: #1e2532;
+  --dark-text: #eef1f6;
+  --dark-muted: #9aa4b7;
+  --dark-accent: #5aa9ff;
+  --dark-accent-strong: #2563eb;
+  --dark-danger: #f87171;
+  --dark-good: #34d399;
+  --dark-good-bg: rgba(52, 211, 153, 0.14);
+  --dark-bad: #f87171;
+  --dark-bad-bg: rgba(248, 113, 113, 0.14);
+  --dark-border: #29313f;
+  --dark-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+
+  /* Paleta clara */
+  --light-bg: #eef2f9;
+  --light-bg-2: #e4eaf4;
+  --light-panel: #ffffff;
+  --light-panel-2: #f4f7fc;
+  --light-text: #16202e;
+  --light-muted: #55617a;
+  --light-accent: #1b74e4;
+  --light-accent-strong: #1b74e4;
+  --light-danger: #cc2f2f;
+  --light-good: #0f8a4d;
+  --light-good-bg: #e6f6ee;
+  --light-bad: #cc2f2f;
+  --light-bad-bg: #fdeaea;
+  --light-border: #d5dde9;
+  --light-shadow: 0 1px 2px rgba(20, 30, 50, 0.08), 0 10px 30px rgba(20, 30, 50, 0.08);
+}
+
+/* Oscuro: es el de partida, y también el que se aplica si se fuerza. */
+:root,
+:root[data-theme="dark"] {
+  --bg: var(--dark-bg);
+  --bg-2: var(--dark-bg-2);
+  --panel: var(--dark-panel);
+  --panel-2: var(--dark-panel-2);
+  --text: var(--dark-text);
+  --muted: var(--dark-muted);
+  --accent: var(--dark-accent);
+  --accent-strong: var(--dark-accent-strong);
+  --danger: var(--dark-danger);
+  --good: var(--dark-good);
+  --good-bg: var(--dark-good-bg);
+  --bad: var(--dark-bad);
+  --bad-bg: var(--dark-bad-bg);
+  --border: var(--dark-border);
+  --shadow: var(--dark-shadow);
   color-scheme: dark;
 }
 
+/* Claro automático: lo pide el sistema y el jugador no ha forzado el oscuro. */
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #eef2f9;
-    --bg-2: #e4eaf4;
-    --panel: #ffffff;
-    --panel-2: #f4f7fc;
-    --text: #16202e;
-    --muted: #55617a;
-    --accent: #1b74e4;
-    --accent-strong: #1b74e4;
-    --danger: #cc2f2f;
-    --good: #0f8a4d;
-    --good-bg: #e6f6ee;
-    --bad: #cc2f2f;
-    --bad-bg: #fdeaea;
-    --border: #d5dde9;
-    --shadow: 0 1px 2px rgba(20, 30, 50, 0.08), 0 10px 30px rgba(20, 30, 50, 0.08);
+  :root:not([data-theme="dark"]) {
+    --bg: var(--light-bg);
+    --bg-2: var(--light-bg-2);
+    --panel: var(--light-panel);
+    --panel-2: var(--light-panel-2);
+    --text: var(--light-text);
+    --muted: var(--light-muted);
+    --accent: var(--light-accent);
+    --accent-strong: var(--light-accent-strong);
+    --danger: var(--light-danger);
+    --good: var(--light-good);
+    --good-bg: var(--light-good-bg);
+    --bad: var(--light-bad);
+    --bad-bg: var(--light-bad-bg);
+    --border: var(--light-border);
+    --shadow: var(--light-shadow);
     color-scheme: light;
   }
+}
+
+/* Claro forzado por el jugador: manda sobre lo que diga el sistema. */
+:root[data-theme="light"] {
+  --bg: var(--light-bg);
+  --bg-2: var(--light-bg-2);
+  --panel: var(--light-panel);
+  --panel-2: var(--light-panel-2);
+  --text: var(--light-text);
+  --muted: var(--light-muted);
+  --accent: var(--light-accent);
+  --accent-strong: var(--light-accent-strong);
+  --danger: var(--light-danger);
+  --good: var(--light-good);
+  --good-bg: var(--light-good-bg);
+  --bad: var(--light-bad);
+  --bad-bg: var(--light-bad-bg);
+  --border: var(--light-border);
+  --shadow: var(--light-shadow);
+  color-scheme: light;
 }
 
 * {

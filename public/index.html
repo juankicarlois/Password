@@ -10,6 +10,16 @@
     <a class="skip-link" href="#actions">Saltar a las acciones</a>
 
     <main class="layout">
+      <!--
+        Regiones de anuncios. Van fuera de las pantallas (y no dentro de la
+        partida) para que sigan funcionando en el vestíbulo y en el manual:
+        una región escondida dentro de una sección oculta no se anuncia.
+        La primera es para los avisos en directo; la segunda, para repetir
+        avisos anteriores con Alt+número, y así no se pisan entre ellas.
+      -->
+      <div id="announce" class="sr-only" role="status" aria-live="assertive"></div>
+      <div id="history" class="sr-only" role="status" aria-live="assertive"></div>
+
       <!-- Vestíbulo: unirse a una sala -->
       <section id="join-screen" aria-labelledby="join-title">
         <h1 id="join-title">Password accesible</h1>
@@ -36,22 +46,15 @@
           <button type="submit">Entrar en la sala</button>
         </form>
         <p id="join-error" class="error" role="alert"></p>
-        <p>
+        <div class="toolbar" role="group" aria-label="Opciones">
           <button type="button" id="btn-help-join" class="secondary">Cómo se juega</button>
-        </p>
+          <button type="button" id="btn-theme-join" class="secondary"></button>
+        </div>
       </section>
 
       <!-- Partida (vestíbulo + juego) -->
       <section id="game-screen" aria-labelledby="game-title" hidden>
         <h1 id="game-title">Sala <span id="room-label"></span></h1>
-
-        <!-- Región de anuncios en directo para el lector de pantalla -->
-        <div id="announce" class="sr-only" role="status" aria-live="assertive"></div>
-        <!--
-          Repetición de avisos anteriores (Alt+número). Va en su propia región
-          para no pisar ni ser pisada por los anuncios en directo.
-        -->
-        <div id="history" class="sr-only" role="status" aria-live="assertive"></div>
 
         <p id="status" class="status"></p>
         <!-- Reloj del contrarreloj; se actualiza solo y se anuncia por umbrales. -->
@@ -60,6 +63,7 @@
         <div class="toolbar" role="group" aria-label="Opciones">
           <button type="button" id="btn-mute" class="secondary"></button>
           <button type="button" id="btn-speak" class="secondary"></button>
+          <button type="button" id="btn-theme-game" class="secondary"></button>
           <button type="button" id="btn-help-game" class="secondary">Cómo se juega</button>
         </div>
 
@@ -142,6 +146,15 @@
           puedes quitarlos con «Silenciar sonidos». Si juegas <strong>sin</strong>
           lector de pantalla, activa «Leer en voz alta» para que el propio juego
           te lea los avisos.
+        </p>
+
+        <h2>Cómo se ve</h2>
+        <p>
+          El botón <strong>«Tema»</strong> cambia el aspecto del juego. Cada vez
+          que lo pulsas pasa al siguiente: <strong>automático</strong> (el mismo
+          claro u oscuro que tenga tu ordenador), <strong>claro</strong> y
+          <strong>oscuro</strong>. El botón dice siempre cuál está puesto, y tu
+          elección se recuerda para la próxima vez.
         </p>
 
         <h2>Repetir un aviso</h2>

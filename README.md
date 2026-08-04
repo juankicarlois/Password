@@ -85,6 +85,8 @@ revisa las condiciones de licencia de esa librería.
 - El botón **«Cómo se juega»** abre un manual navegable por encabezados.
 - Quien juega **sin** lector de pantalla puede activar **«Leer en voz alta»** para
   que el juego lea sus avisos con la voz del navegador.
+- El botón **«Tema»** alterna entre automático (el del sistema), claro y oscuro,
+  para quien necesite forzar uno concreto. La elección se recuerda.
 - Todos los controles de teclado están documentados en [`teclas.md`](teclas.md).
 
 ## Estructura del proyecto

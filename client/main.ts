@@ -25,6 +25,7 @@ import {
 import { Net } from './net.js';
 import { SoundEngine } from './audio.js';
 import { Speech } from './speech.js';
+import { ThemeSwitcher } from './theme.js';
 import { HelpScreen } from './help.js';
 import { MessageHistory, historyIndexFromKey } from './history.js';
 
@@ -32,6 +33,8 @@ import { MessageHistory, historyIndexFromKey } from './history.js';
 const sound = new SoundEngine();
 /** Lectura en voz alta opcional (para quien juega sin lector de pantalla). */
 const speech = new Speech();
+/** Tema visual: automático (el del sistema), claro u oscuro. */
+const theme = new ThemeSwitcher();
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -991,6 +994,31 @@ speakButton.addEventListener('click', () => {
   announce(enabled ? 'Lectura en voz alta activada.' : 'Lectura en voz alta desactivada.');
 });
 updateSpeakButton();
+
+// --- Tema visual ------------------------------------------------------------
+
+/**
+ * Botones del tema, uno en el vestíbulo y otro en la partida. Los dos hacen lo
+ * mismo y muestran siempre el tema activo, para que se sepa en cuál se está sin
+ * tener que mirar la pantalla.
+ */
+const themeButtons = [$<HTMLButtonElement>('btn-theme-join'), $<HTMLButtonElement>('btn-theme-game')];
+
+function updateThemeButtons(): void {
+  for (const btn of themeButtons) btn.textContent = `Tema: ${theme.label}`;
+}
+for (const btn of themeButtons) {
+  btn.addEventListener('click', () => {
+    theme.next();
+    updateThemeButtons();
+    announce(
+      theme.current === 'auto'
+        ? 'Tema automático: el que tenga tu sistema.'
+        : `Tema ${theme.label}.`,
+    );
+  });
+}
+updateThemeButtons();
 
 /** Manual "cómo se juega", superpuesto a la pantalla que hubiera. */
 const help = new HelpScreen({ help: $('help-screen'), others: [joinScreen, gameScreen] });
