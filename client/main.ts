@@ -53,7 +53,8 @@ const announceRegion = $('announce');
 const historyRegion = $('history');
 const statusLine = $('status');
 const clockLine = $('clock');
-const clockTools = $('clock-tools');
+const roundTools = $('round-tools');
+const timeButton = $<HTMLButtonElement>('btn-time');
 const muteButton = $<HTMLButtonElement>('btn-mute');
 const speakButton = $<HTMLButtonElement>('btn-speak');
 const playersTitle = $('players-title');
@@ -108,6 +109,10 @@ const net = new Net({
         break;
       case 'secret':
         secretWord = message.word;
+        // Quien da las pistas tiene que OÍR su palabra. En pantalla la ve, pero
+        // sin anunciarla habría que salir a buscarla con el lector cada ronda.
+        // Llega justo después del aviso de ronda nueva, así que se dicen juntas.
+        if (message.word) announce(`Tu palabra secreta: ${message.word}.`);
         if (lastState) renderActions(lastState);
         break;
       case 'clueRejected':
@@ -268,6 +273,8 @@ function handleEvent(event: GameEvent): void {
 
 function render(state: GameView): void {
   renderStatus(state);
+  // Las consultas solo tienen sentido con una ronda en marcha que repasar.
+  roundTools.hidden = state.phase !== 'playing';
   renderClock(state);
   renderPlayers(state);
   renderConfig(state);
@@ -310,7 +317,7 @@ function startCountdown(deadline: number): void {
   clearCountdownTimer();
   announcedThresholds = new Set();
   clockLine.hidden = false;
-  clockTools.hidden = false;
+  timeButton.hidden = false;
   const tick = (): void => {
     const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
     clockLine.textContent = `Tiempo restante: ${formatTime(remaining)}.`;
@@ -334,7 +341,7 @@ function stopCountdown(hide = true): void {
   clearCountdownTimer();
   if (hide) {
     clockLine.hidden = true;
-    clockTools.hidden = true;
+    timeButton.hidden = true;
     currentDeadline = null;
   }
 }
@@ -372,10 +379,44 @@ function spokenTime(totalSeconds: number): string {
  * ser una región que se anuncie sola (cambia cada medio segundo y no dejaría oír
  * nada más), así que esta es la forma de consultarlo sin ver.
  */
-$<HTMLButtonElement>('btn-time').addEventListener('click', () => {
+timeButton.addEventListener('click', () => {
   const quedan = remainingSeconds();
   announce(quedan === null ? 'Esta partida no va por tiempo.' : `Quedan ${spokenTime(quedan)}.`);
 });
+
+/**
+ * @brief Resume la ronda en una frase: la palabra, la categoría, las pistas
+ *        dadas y lo que ya se ha probado.
+ *
+ * La palabra solo aparece si este cliente la tiene, y solo la recibe quien da
+ * las pistas: al que adivina no se le puede chivar.
+ *
+ * @return La frase para anunciar.
+ */
+function recapRound(): string {
+  const round = lastState?.round;
+  if (!round || lastState?.phase !== 'playing') return 'No hay ninguna ronda en marcha.';
+
+  const partes: string[] = [];
+  if (secretWord) partes.push(`Tu palabra secreta: ${secretWord}.`);
+  partes.push(`Categoría: ${round.category}.`);
+  partes.push(
+    round.clues.length === 0
+      ? 'Todavía no hay pistas.'
+      : `Pistas: ${round.clues.map((clue, i) => `${i + 1}, ${clue}`).join('. ')}.`,
+  );
+  const fallados = round.guesses.filter((g) => !g.correct).map((g) => g.text);
+  if (fallados.length > 0) partes.push(`Ya se ha probado, sin acertar: ${fallados.join(', ')}.`);
+  return partes.join(' ');
+}
+
+/**
+ * Repasar la ronda a demanda. Los avisos pasan y no vuelven, y en una ronda
+ * larga hay que tener presentes la palabra, la categoría y todas las pistas a la
+ * vez; ir sacándolas de los mensajes sueltos con Alt+número era ir a ciegas.
+ * Como todo lo que se anuncia, este repaso también queda guardado ahí.
+ */
+$<HTMLButtonElement>('btn-recap').addEventListener('click', () => announce(recapRound()));
 
 function renderStatus(state: GameView): void {
   let text: string;
