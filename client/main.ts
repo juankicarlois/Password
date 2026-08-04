@@ -420,7 +420,7 @@ function renderLobbyPlayers(state: GameView): void {
 
     // En el duelo se elige la pareja: tú la tuya; el anfitrión, la de los bots.
     if (esDuelo && (player.id === myId || (player.isBot && soyAnfitrion))) {
-      li.append(buildTeamPicker(player.id, player.team, player.id === myId));
+      li.append(buildTeamPicker(player.id, player.name, player.team, player.id === myId));
     }
 
     // El anfitrión puede quitar bots durante el vestíbulo.
@@ -434,8 +434,25 @@ function renderLobbyPlayers(state: GameView): void {
   }
 }
 
-/** Botones para elegir el equipo (1 o 2) de un jugador o bot en el duelo. */
-function buildTeamPicker(playerId: string, current: number | null, isMe: boolean): HTMLElement {
+/**
+ * @brief Botones para elegir el equipo (1 o 2) de un jugador o bot en el duelo.
+ *
+ * Emparejarse es ponerse en el mismo número que la otra persona, así que cada
+ * cual maneja el suyo (el anfitrión, además, el de los bots).
+ *
+ * @param playerId De quién es este selector.
+ * @param playerName Su nombre, que va en el rótulo hablado: recorriendo la lista
+ *        con el lector solo se oiría «Equipo 1» una fila tras otra, sin saber a
+ *        quién corresponde cada par de botones.
+ * @param current Equipo que tiene ahora, o null si no tiene.
+ * @param isMe true si es el selector propio (elige uno mismo) y no el de un bot.
+ */
+function buildTeamPicker(
+  playerId: string,
+  playerName: string,
+  current: number | null,
+  isMe: boolean,
+): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'team-picker';
   for (let n = 1; n <= 2; n++) {
@@ -444,8 +461,11 @@ function buildTeamPicker(playerId: string, current: number | null, isMe: boolean
       () => net.send(isMe ? { type: 'chooseTeam', team: n } : { type: 'setBotTeam', playerId, team: n }),
       'secondary',
     );
-    btn.setAttribute('aria-label', `Poner en el equipo ${n}`);
-    if (current === n) btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', `${isMe ? 'Tú' : playerName}: Equipo ${n}`);
+    // El estado va SIEMPRE, también cuando es falso: si solo se marcara el botón
+    // activo, los demás no se anunciarían siquiera como opciones que se pueden
+    // marcar, y no se sabría que forman un grupo donde se elige una.
+    btn.setAttribute('aria-pressed', String(current === n));
     wrap.append(btn);
   }
   return wrap;
@@ -595,7 +615,7 @@ function numberRow(
   row.setAttribute('aria-labelledby', legend.id);
   for (const value of values) {
     const btn = button(format(value), () => onPick(value), 'secondary');
-    if (value === current) btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-pressed', String(value === current));
     row.append(btn);
   }
   wrap.append(row);
@@ -641,7 +661,7 @@ function choiceRow<T extends string>(
   row.setAttribute('aria-labelledby', legend.id);
   for (const opt of options) {
     const btn = button(opt.label, () => onPick(opt.id), 'secondary');
-    if (opt.id === current) btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-pressed', String(opt.id === current));
     row.append(btn);
   }
   wrap.append(row);
