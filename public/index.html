@@ -7,7 +7,13 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#actions">Saltar a las acciones</a>
+    <!--
+      Atajo para saltarse estado, opciones y jugadores e ir directo a los mandos.
+      Empieza oculto porque su destino (#actions) vive en la pantalla de partida:
+      ofrecerlo en el vestíbulo o en el manual sería un enlace que no lleva a
+      ninguna parte. Se muestra y se esconde con esa pantalla.
+    -->
+    <a class="skip-link" id="skip-link" href="#actions" hidden>Saltar a las acciones</a>
 
     <main class="layout">
       <!--
@@ -57,8 +63,17 @@
         <h1 id="game-title">Sala <span id="room-label"></span></h1>
 
         <p id="status" class="status"></p>
-        <!-- Reloj del contrarreloj; se actualiza solo y se anuncia por umbrales. -->
-        <p id="clock" class="status clock" role="status" aria-live="polite" hidden></p>
+        <!--
+          Reloj del contrarreloj. NO es una región `aria-live`: se reescribe cada
+          medio segundo, así que anunciarlo dejaría al lector de pantalla hablando
+          sin parar y la partida sería injugable. El tiempo se comunica por voz de
+          otras dos formas: avisos automáticos al quedar 60, 30 y 10 segundos, y
+          el botón «Cuánto tiempo queda», que lo dice cuando se pida.
+        -->
+        <p id="clock" class="status clock" hidden></p>
+        <div id="clock-tools" class="toolbar" hidden>
+          <button type="button" id="btn-time" class="secondary">Cuánto tiempo queda</button>
+        </div>
 
         <div class="toolbar" role="group" aria-label="Opciones">
           <button type="button" id="btn-mute" class="secondary"></button>
@@ -67,10 +82,15 @@
           <button type="button" id="btn-help-game" class="secondary">Cómo se juega</button>
         </div>
 
-        <section id="config-section" aria-label="Configuración de la partida"></section>
+        <!-- Se nombra con su propio encabezado (lo pone el cliente), para no
+             repetir el mismo texto como rótulo de la región y como título. -->
+        <section id="config-section" aria-labelledby="config-title"></section>
 
         <h2 id="players-title">Jugadores</h2>
-        <ul id="players" class="players"></ul>
+        <!-- `role="list"` explícito: quitar los topos con `list-style: none`
+             hace que algunos lectores dejen de tratarlo como lista y se pierda
+             el «lista de 3 elementos» al recorrerla. -->
+        <ul id="players" class="players" role="list"></ul>
 
         <h2>Acciones</h2>
         <div id="actions" tabindex="-1"></div>
@@ -136,7 +156,8 @@
         <p>
           En este modo se juega contra el reloj: cuantas más palabras acertéis
           antes de que se agote el tiempo, mejor. El juego avisa por voz cuando
-          quedan 60, 30 y 10 segundos.
+          queda un minuto, treinta segundos y diez segundos, y el botón
+          <strong>«Cuánto tiempo queda»</strong> te lo dice siempre que quieras.
         </p>
 
         <h2>Sonidos y voz</h2>

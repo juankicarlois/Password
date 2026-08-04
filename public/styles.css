@@ -23,6 +23,8 @@
   --dark-muted: #9aa4b7;
   --dark-accent: #5aa9ff;
   --dark-accent-strong: #2563eb;
+  /* Tono profundo, solo para el degradado de la palabra secreta (ver abajo). */
+  --dark-accent-deep: #1d4ed8;
   --dark-danger: #f87171;
   --dark-good: #34d399;
   --dark-good-bg: rgba(52, 211, 153, 0.14);
@@ -38,12 +40,19 @@
   --light-panel-2: #f4f7fc;
   --light-text: #16202e;
   --light-muted: #55617a;
+  /*
+   * Los tonos "fuertes" del tema claro van más oscuros de lo que pedirían las
+   * ganas: sobre blanco, los vivos se quedaban en 4:1 o por debajo y el texto
+   * encima no llegaba al mínimo legible. Medido: blanco sobre --light-accent-
+   * strong y los colores de acierto/fallo sobre sus fondos.
+   */
   --light-accent: #1b74e4;
-  --light-accent-strong: #1b74e4;
-  --light-danger: #cc2f2f;
-  --light-good: #0f8a4d;
+  --light-accent-strong: #1566cc;
+  --light-accent-deep: #0f4f9e;
+  --light-danger: #b91c1c;
+  --light-good: #0a6b3b;
   --light-good-bg: #e6f6ee;
-  --light-bad: #cc2f2f;
+  --light-bad: #b91c1c;
   --light-bad-bg: #fdeaea;
   --light-border: #d5dde9;
   --light-shadow: 0 1px 2px rgba(20, 30, 50, 0.08), 0 10px 30px rgba(20, 30, 50, 0.08);
@@ -60,6 +69,7 @@
   --muted: var(--dark-muted);
   --accent: var(--dark-accent);
   --accent-strong: var(--dark-accent-strong);
+  --accent-deep: var(--dark-accent-deep);
   --danger: var(--dark-danger);
   --good: var(--dark-good);
   --good-bg: var(--dark-good-bg);
@@ -81,6 +91,7 @@
     --muted: var(--light-muted);
     --accent: var(--light-accent);
     --accent-strong: var(--light-accent-strong);
+    --accent-deep: var(--light-accent-deep);
     --danger: var(--light-danger);
     --good: var(--light-good);
     --good-bg: var(--light-good-bg);
@@ -102,6 +113,7 @@
   --muted: var(--light-muted);
   --accent: var(--light-accent);
   --accent-strong: var(--light-accent-strong);
+  --accent-deep: var(--light-accent-deep);
   --danger: var(--light-danger);
   --good: var(--light-good);
   --good-bg: var(--light-good-bg);
@@ -352,8 +364,14 @@ button[aria-pressed="true"] {
 
 /* --- Juego --- */
 
+/*
+ * La palabra secreta es el texto más importante para quien da pistas, así que
+ * el degradado va entre dos azules OSCUROS. Antes terminaba en el azul claro y
+ * el texto blanco se quedaba en 2,46:1 sobre ese extremo: ilegible justo donde
+ * más falta hace leer.
+ */
 .secret-word {
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  background: linear-gradient(135deg, var(--accent-deep), var(--accent-strong));
   color: #fff;
   border-radius: 12px;
   padding: 0.85rem 1rem;
@@ -425,15 +443,14 @@ button[aria-pressed="true"] {
   color: var(--good);
   border-color: var(--good);
 }
-.guess::before {
+/*
+ * El icono lo pone el cliente en un `span` con `aria-hidden`, no aquí con
+ * `content`: así el lector de pantalla no lee «marca de verificación» encima
+ * del resultado, que ya va escrito en palabras al lado.
+ */
+.guess-icon {
   margin-right: 0.4rem;
   font-weight: 700;
-}
-.guess.wrong::before {
-  content: "✗";
-}
-.guess.correct::before {
-  content: "✓";
 }
 
 .play-form {

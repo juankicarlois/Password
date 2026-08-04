@@ -21,6 +21,24 @@ se rebajan sin motivo:
   región dentro de una sección con `hidden` **no se anuncia**: ya pasó una vez y
   los avisos del vestíbulo se perdían en silencio. No las metas dentro de
   `#join-screen`, `#game-screen` ni `#help-screen`.
+- **Nada que se refresque solo puede ser región `aria-live`.** El reloj del
+  contrarreloj lo era y se reescribe cada medio segundo: el lector de pantalla
+  hablaría sin parar y taparía el juego entero. Lo que cambie por su cuenta se
+  deja como texto normal y se ofrece **un botón para consultarlo** (ahí está
+  «Cuánto tiempo queda»), más avisos puntuales en los momentos que importan.
+- **La información nunca depende solo del color ni de un icono.** Los resultados
+  van escritos («acierto», «no es»); el icono ✓/✗ es un `span` con `aria-hidden`
+  para que no se lea «marca de verificación» encima del texto.
+- **Contraste mínimo 4,5:1** (3:1 si el texto es grande y en negrita), medido en
+  **los dos temas**. Ojo con los degradados: se mide contra el extremo peor, que
+  es donde se coló un 2,46:1 en la palabra secreta.
+- **Un botón desactivado no explica nada.** No recibe el foco y su `title` no se
+  lee: el motivo va en texto a la vista, al lado.
+- **Listas con `list-style: none` llevan `role="list"`.** Sin los topos hay
+  lectores que dejan de anunciarlas como lista.
+- **En un grupo de opciones, `aria-pressed` va en TODOS los botones**, también
+  con valor `false`; si solo se marca el activo, los demás no se anuncian
+  siquiera como marcables.
 - **Botones, no teclas sueltas**, para las acciones. Los lectores en modo
   exploración capturan las letras sueltas como navegación rápida y no llegarían a
   la página. Los atajos solo con **Alt+tecla** (Alt no lo intercepta el lector).

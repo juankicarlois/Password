@@ -33,6 +33,7 @@ recorren con `Tab` y se activan con `Intro` o `Espacio`.
 | «Silenciar sonidos» / «Activar sonidos» | Quita o pone los efectos de sonido. |
 | «Leer en voz alta» / «No leer en voz alta» | Activa o desactiva que el juego lea los avisos (para quien juega sin lector de pantalla). |
 | «Tema: automático / claro / oscuro» | Cambia el aspecto. Cada pulsación pasa al siguiente: automático (el del sistema), claro, oscuro. |
+| «Cuánto tiempo queda» | Solo en contrarreloj: dice en voz alta el tiempo restante. |
 | «Cómo se juega» | Abre el manual. |
 
 ## Manual de ayuda

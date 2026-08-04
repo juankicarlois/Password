@@ -13,11 +13,19 @@ export interface HelpScreens {
   help: HTMLElement;
   /** Todas las pantallas que la ayuda puede tapar (para restaurar la visible). */
   others: HTMLElement[];
+  /**
+   * Aviso de abierto/cerrado, para lo que dependa de qué pantalla se ve. Lo usa
+   * el atajo «Saltar a las acciones», que apunta a la pantalla de partida: con
+   * el manual delante su destino queda oculto y el enlace no llevaría a ningún
+   * sitio.
+   */
+  onToggle?: (open: boolean) => void;
 }
 
 export class HelpScreen {
   private readonly help: HTMLElement;
   private readonly others: HTMLElement[];
+  private readonly onToggle?: (open: boolean) => void;
   /** Pantalla que estaba visible al abrir la ayuda, para restaurarla al cerrar. */
   private previous: HTMLElement | null = null;
   /** Botón que abrió la ayuda, para devolverle el foco al cerrar. */
@@ -26,6 +34,7 @@ export class HelpScreen {
   constructor(screens: HelpScreens) {
     this.help = screens.help;
     this.others = screens.others;
+    this.onToggle = screens.onToggle;
 
     // Cualquier botón con data-help-close cierra (hay uno arriba y otro abajo).
     for (const btn of this.help.querySelectorAll<HTMLElement>('[data-help-close]')) {
@@ -55,6 +64,7 @@ export class HelpScreen {
     this.previous = this.others.find((s) => !s.hidden) ?? null;
     if (this.previous) this.previous.hidden = true;
     this.help.hidden = false;
+    this.onToggle?.(true);
     this.help.focus(); // el título tiene tabindex -1: el lector empieza por él
   }
 
@@ -64,6 +74,7 @@ export class HelpScreen {
     this.help.hidden = true;
     if (this.previous) this.previous.hidden = false;
     this.previous = null;
+    this.onToggle?.(false);
     this.opener?.focus();
     this.opener = null;
   }

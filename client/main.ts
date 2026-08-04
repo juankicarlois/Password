@@ -53,6 +53,7 @@ const announceRegion = $('announce');
 const historyRegion = $('history');
 const statusLine = $('status');
 const clockLine = $('clock');
+const clockTools = $('clock-tools');
 const muteButton = $<HTMLButtonElement>('btn-mute');
 const speakButton = $<HTMLButtonElement>('btn-speak');
 const playersTitle = $('players-title');
@@ -151,6 +152,18 @@ function showGameScreen(): void {
   joinScreen.hidden = true;
   gameScreen.hidden = false;
   roomLabel.textContent = roomCode;
+  updateSkipLink();
+}
+
+/**
+ * El atajo «Saltar a las acciones» solo se ofrece con la pantalla de partida a
+ * la vista, que es donde está su destino y donde hay algo que saltarse (estado,
+ * opciones y jugadores). En el vestíbulo no hay nada delante de los mandos, y
+ * con el manual abierto el destino queda oculto: en ambos casos sería un enlace
+ * que no lleva a ningún sitio.
+ */
+function updateSkipLink(): void {
+  $('skip-link').hidden = gameScreen.hidden;
 }
 
 function showError(message: string): void {
@@ -281,10 +294,23 @@ function renderClock(state: GameView): void {
 /** Segundos en los que se avisa por voz de cuánto queda. */
 const TIME_WARNINGS = [60, 30, 10];
 
+/** Detiene el latido del reloj sin tocar lo que se ve ni el instante de fin. */
+function clearCountdownTimer(): void {
+  if (countdownTimer !== null) {
+    window.clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+}
+
 function startCountdown(deadline: number): void {
-  stopCountdown();
+  // Solo se para el latido: `stopCountdown()` además olvidaría el instante de
+  // fin, y como `renderClock` compara con él para decidir si arranca, la cuenta
+  // atrás se reiniciaría en CADA cambio de estado. Eso borraba los avisos ya
+  // dados, así que en el último minuto cada pista repetía «quedan un minuto».
+  clearCountdownTimer();
   announcedThresholds = new Set();
   clockLine.hidden = false;
+  clockTools.hidden = false;
   const tick = (): void => {
     const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
     clockLine.textContent = `Tiempo restante: ${formatTime(remaining)}.`;
@@ -292,7 +318,7 @@ function startCountdown(deadline: number): void {
       if (remaining <= t && remaining > 0 && !announcedThresholds.has(t)) {
         announcedThresholds.add(t);
         sound.play('warn');
-        announce(`Quedan ${t} segundos.`);
+        announce(`Quedan ${spokenTime(t)}.`);
       }
     }
     if (remaining <= 0) {
@@ -305,14 +331,18 @@ function startCountdown(deadline: number): void {
 }
 
 function stopCountdown(hide = true): void {
-  if (countdownTimer !== null) {
-    window.clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
+  clearCountdownTimer();
   if (hide) {
     clockLine.hidden = true;
+    clockTools.hidden = true;
     currentDeadline = null;
   }
+}
+
+/** Segundos que quedan de contrarreloj, o null si la partida no va por tiempo. */
+function remainingSeconds(): number | null {
+  if (currentDeadline === null) return null;
+  return Math.max(0, Math.round((currentDeadline - Date.now()) / 1000));
 }
 
 /** Formatea segundos como minutos y segundos (p. ej. 1:05). */
@@ -321,6 +351,31 @@ function formatTime(totalSeconds: number): string {
   const sec = totalSeconds % 60;
   return `${min}:${sec.toString().padStart(2, '0')}`;
 }
+
+/**
+ * @brief Dice el tiempo con palabras, no con dos puntos: «1:05» se lee fatal en
+ *        voz alta, y el reloj es justo lo que hay que entender de oído.
+ * @param totalSeconds Segundos restantes.
+ * @return Frase del tipo «un minuto y cinco segundos».
+ */
+function spokenTime(totalSeconds: number): string {
+  const min = Math.floor(totalSeconds / 60);
+  const sec = totalSeconds % 60;
+  const partes: string[] = [];
+  if (min > 0) partes.push(min === 1 ? 'un minuto' : `${min} minutos`);
+  if (sec > 0 || min === 0) partes.push(sec === 1 ? 'un segundo' : `${sec} segundos`);
+  return partes.join(' y ');
+}
+
+/**
+ * Botón para preguntar el tiempo cuando se quiera. El reloj de pantalla no puede
+ * ser una región que se anuncie sola (cambia cada medio segundo y no dejaría oír
+ * nada más), así que esta es la forma de consultarlo sin ver.
+ */
+$<HTMLButtonElement>('btn-time').addEventListener('click', () => {
+  const quedan = remainingSeconds();
+  announce(quedan === null ? 'Esta partida no va por tiempo.' : `Quedan ${spokenTime(quedan)}.`);
+});
 
 function renderStatus(state: GameView): void {
   let text: string;
@@ -512,7 +567,10 @@ function renderConfig(state: GameView): void {
   const soyAnfitrion = state.hostId != null && state.hostId === myId;
   configSection.replaceChildren();
 
+  // El id lo referencia `aria-labelledby` de la sección: así la región y el
+  // encabezado comparten nombre en vez de anunciarlo dos veces.
   const title = document.createElement('h2');
+  title.id = 'config-title';
   title.textContent = 'Configuración de la partida';
   configSection.append(title);
 
@@ -577,11 +635,36 @@ function renderConfig(state: GameView): void {
   if (state.config.structure === 'oneVsOne') {
     req.textContent = 'Uno contra uno: exactamente dos jugadores; puntúa quien adivina.';
   } else if (state.config.structure === 'duel') {
-    req.textContent = 'Duelo: cuatro jugadores repartidos en dos parejas (dos y dos). Asigna el equipo de cada uno abajo.';
+    req.textContent = 'Duelo: cuatro jugadores repartidos en dos parejas (dos y dos). Cada cual elige su equipo abajo; emparejarse es poneros en el mismo número.';
   } else {
     req.textContent = 'Cooperativa: dos jugadores que colaboran con un marcador común.';
   }
   configSection.append(req);
+
+  // En el duelo, cómo van quedando las parejas. Sin esto habría que ir leyendo
+  // la lista de jugadores uno a uno para saber con quién te ha tocado.
+  if (state.config.structure === 'duel') {
+    const parejas = document.createElement('p');
+    parejas.className = 'hint';
+    parejas.textContent = describeTeams(state);
+    configSection.append(parejas);
+  }
+}
+
+/**
+ * @brief Resume cómo están repartidas las parejas del duelo ahora mismo.
+ * @param state Estado de la sala.
+ * @return Frase con quién hay en cada equipo y quién falta por elegir.
+ */
+function describeTeams(state: GameView): string {
+  const nombres = (team: number): string => {
+    const miembros = state.players.filter((p) => p.team === team).map((p) => p.name);
+    return miembros.length === 0 ? 'nadie todavía' : miembros.join(' y ');
+  };
+  const partes = [`Equipo 1: ${nombres(1)}.`, `Equipo 2: ${nombres(2)}.`];
+  const sinEquipo = state.players.filter((p) => p.team !== 1 && p.team !== 2).map((p) => p.name);
+  if (sinEquipo.length > 0) partes.push(`Sin equipo: ${sinEquipo.join(', ')}.`);
+  return partes.join(' ');
 }
 
 /**
@@ -674,6 +757,32 @@ function difficultyLabel(id: string): string {
 
 // --- Acciones ---------------------------------------------------------------
 
+/**
+ * @brief Añade el botón de arrancar la partida y, si no se puede, el motivo.
+ *
+ * El motivo va en texto a la vista y no en un `title`: los lectores de pantalla
+ * no lo leen, y un botón desactivado ni siquiera recibe el foco, así que quien
+ * no ve se quedaría sin saber por qué no arranca.
+ *
+ * @param label Texto del botón («Empezar partida» o «Jugar otra vez»).
+ * @param id Identificador del botón.
+ * @param state Estado de la sala, para saber si falta gente.
+ * @return El botón, para poder darle el foco.
+ */
+function appendStartButton(label: string, id: string, state: GameView): HTMLButtonElement {
+  const btn = button(label, () => net.send({ type: 'start' }));
+  btn.id = id;
+  btn.disabled = state.players.length < 2;
+  actions.append(btn);
+  if (btn.disabled) {
+    const motivo = document.createElement('p');
+    motivo.className = 'hint';
+    motivo.textContent = 'Hacen falta al menos dos participantes: espera a alguien o añade un bot.';
+    actions.append(motivo);
+  }
+  return btn;
+}
+
 /** Fila de botones para añadir bots; sirve igual antes y después de una partida. */
 function buildBotRow(): HTMLElement {
   const bots = document.createElement('div');
@@ -709,12 +818,7 @@ function renderActions(state: GameView): void {
     if (soyAnfitrion) {
       actions.append(buildBotRow());
 
-      const startBtn = button('Empezar partida', () => net.send({ type: 'start' }));
-      startBtn.id = 'start-game';
-      startBtn.disabled = state.players.length < 2;
-      if (startBtn.disabled) startBtn.title = 'Hacen falta al menos dos participantes.';
-      actions.append(startBtn);
-      focusTarget = startBtn;
+      focusTarget = appendStartButton('Empezar partida', 'start-game', state);
     }
   } else if (state.phase === 'playing' && state.round) {
     focusTarget = renderPlaying(state.round);
@@ -727,12 +831,7 @@ function renderActions(state: GameView): void {
         'Puedes cambiar la configuración de arriba, añadir o quitar bots, y volver a jugar.';
       actions.append(hint, buildBotRow());
 
-      const again = button('Jugar otra vez', () => net.send({ type: 'start' }));
-      again.id = 'play-again';
-      again.disabled = state.players.length < 2;
-      if (again.disabled) again.title = 'Hacen falta al menos dos participantes.';
-      actions.append(again);
-      focusTarget = again;
+      focusTarget = appendStartButton('Jugar otra vez', 'play-again', state);
     }
   }
 
@@ -831,6 +930,9 @@ function buildCluesList(round: RoundView): HTMLElement {
   }
   const list = document.createElement('ol');
   list.className = 'clues';
+  // Sin topos (`list-style: none`) hay lectores que dejan de anunciarlo como
+  // lista; el rol explícito conserva el «lista de N elementos».
+  list.setAttribute('role', 'list');
   for (const clue of round.clues) {
     const li = document.createElement('li');
     li.textContent = clue;
@@ -856,11 +958,20 @@ function buildGuessesList(round: RoundView): HTMLElement | null {
 
   const list = document.createElement('ul');
   list.className = 'guesses';
+  list.setAttribute('role', 'list');
   for (const guess of round.guesses) {
     const li = document.createElement('li');
     li.className = 'guess' + (guess.correct ? ' correct' : ' wrong');
+    // El icono es un adorno para quien ve: el resultado ya va en palabras justo
+    // al lado, así que se esconde del lector para no oír «marca de verificación».
+    const icono = document.createElement('span');
+    icono.className = 'guess-icon';
+    icono.setAttribute('aria-hidden', 'true');
+    icono.textContent = guess.correct ? '✓' : '✗';
     const quien = guess.playerId === myId ? 'Tú' : nameOf(guess.playerId);
-    li.textContent = `${quien}: ${guess.text} — ${guess.correct ? 'acierto' : 'no es'}`;
+    const texto = document.createElement('span');
+    texto.textContent = `${quien}: ${guess.text} — ${guess.correct ? 'acierto' : 'no es'}`;
+    li.append(icono, texto);
     list.append(li);
   }
   wrap.append(list);
@@ -1066,7 +1177,11 @@ for (const btn of themeButtons) {
 updateThemeButtons();
 
 /** Manual "cómo se juega", superpuesto a la pantalla que hubiera. */
-const help = new HelpScreen({ help: $('help-screen'), others: [joinScreen, gameScreen] });
+const help = new HelpScreen({
+  help: $('help-screen'),
+  others: [joinScreen, gameScreen],
+  onToggle: () => updateSkipLink(),
+});
 $<HTMLButtonElement>('btn-help-join').addEventListener('click', (ev) => help.show(ev.currentTarget as HTMLElement));
 $<HTMLButtonElement>('btn-help-game').addEventListener('click', (ev) => help.show(ev.currentTarget as HTMLElement));
 
