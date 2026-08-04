@@ -71,8 +71,14 @@
           el botón «Cuánto tiempo queda», que lo dice cuando se pida.
         -->
         <p id="clock" class="status clock" hidden></p>
-        <div id="clock-tools" class="toolbar" hidden>
-          <button type="button" id="btn-time" class="secondary">Cuánto tiempo queda</button>
+        <!--
+          Consultas de la ronda. Lo que se anuncia pasa y se lo lleva el viento;
+          esto permite volver a pedirlo cuando haga falta, y además queda
+          guardado para repetirlo luego con Alt+número.
+        -->
+        <div id="round-tools" class="toolbar" role="group" aria-label="Consultas" hidden>
+          <button type="button" id="btn-recap" class="secondary">Repasar la ronda</button>
+          <button type="button" id="btn-time" class="secondary" hidden>Cuánto tiempo queda</button>
         </div>
 
         <div class="toolbar" role="group" aria-label="Opciones">
@@ -178,12 +184,20 @@
           elección se recuerda para la próxima vez.
         </p>
 
-        <h2>Repetir un aviso</h2>
+        <h2>Repasar y repetir</h2>
         <p>
-          Si se te escapa un aviso, <kbd>Alt</kbd> más un número repite uno de los
-          últimos: <kbd>Alt+1</kbd> el último, <kbd>Alt+2</kbd> el anterior… y
+          El botón <strong>«Repasar la ronda»</strong> te dice de una vez lo que
+          necesitas tener presente: tu <strong>palabra secreta</strong> si eres
+          quien da las pistas, la <strong>categoría</strong>, todas las
+          <strong>pistas</strong> dadas hasta ahora y lo que ya se ha probado sin
+          acertar. Púlsalo siempre que te haga falta.
+        </p>
+        <p>
+          Y si se te escapa un aviso, <kbd>Alt</kbd> más un número repite uno de
+          los últimos: <kbd>Alt+1</kbd> el último, <kbd>Alt+2</kbd> el anterior… y
           <kbd>Alt+0</kbd> el décimo. Al llevar <kbd>Alt</kbd>, el lector no se
-          queda la tecla, así que funciona también en modo exploración.
+          queda la tecla, así que funciona también en modo exploración. Los
+          repasos que pidas también se guardan ahí.
         </p>
 
         <h2>Moverte por el juego</h2>
