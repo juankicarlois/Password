@@ -359,10 +359,22 @@ function scoreboardSuffix(state: GameView): string {
   return ` Marcador: ${state.scores.map((t) => `${t.name}, ${t.points}`).join('; ')}.`;
 }
 
+/**
+ * true si se está preparando una partida: en el vestíbulo o con una ya
+ * terminada. Al acabar se puede volver a jugar, así que se vuelven a ofrecer la
+ * configuración, los bots y el reparto de equipos; si no, habría que crear otra
+ * sala solo para cambiar de modo.
+ */
+function preparandoPartida(state: GameView): boolean {
+  return state.phase === 'lobby' || state.phase === 'gameOver';
+}
+
 function renderPlayers(state: GameView): void {
-  // En el vestíbulo se listan los jugadores (con su equipo y mandos); en partida,
-  // el marcador por equipo, que es lo que de verdad compite.
-  if (state.phase === 'lobby') {
+  // Preparando partida se listan los jugadores (con su equipo y mandos); en
+  // partida, el marcador por equipo, que es lo que de verdad compite. Al acabar
+  // el resultado ya lo cuenta el resumen, así que la lista vuelve a ser la de
+  // preparar la siguiente.
+  if (preparandoPartida(state)) {
     renderLobbyPlayers(state);
   } else {
     renderScoreboard(state);
@@ -470,12 +482,12 @@ function renderScoreboard(state: GameView): void {
 /**
  * Panel de configuración de la partida. Solo el anfitrión lo edita; a los demás
  * se les muestra la configuración elegida en texto, para que sepan a qué van a
- * jugar. Se oculta fuera del vestíbulo (la configuración no cambia a media
- * partida).
+ * jugar. Solo se oculta con una partida en marcha, porque los ajustes no cambian
+ * a media partida; al terminar vuelve, para poder montar la siguiente distinta.
  */
 function renderConfig(state: GameView): void {
-  configSection.hidden = state.phase !== 'lobby';
-  if (state.phase !== 'lobby') return;
+  configSection.hidden = !preparandoPartida(state);
+  if (!preparandoPartida(state)) return;
 
   const soyAnfitrion = state.hostId != null && state.hostId === myId;
   configSection.replaceChildren();
@@ -642,6 +654,24 @@ function difficultyLabel(id: string): string {
 
 // --- Acciones ---------------------------------------------------------------
 
+/** Fila de botones para añadir bots; sirve igual antes y después de una partida. */
+function buildBotRow(): HTMLElement {
+  const bots = document.createElement('div');
+  bots.className = 'action-row';
+  bots.setAttribute('role', 'group');
+  bots.setAttribute('aria-label', 'Añadir bot');
+  for (const diff of BOT_DIFFICULTIES) {
+    const botBtn = button(
+      `Añadir bot ${diff.label.toLowerCase()}`,
+      () => net.send({ type: 'addBot', difficulty: diff.id }),
+      'secondary',
+    );
+    botBtn.id = `add-bot-${diff.id}`;
+    bots.append(botBtn);
+  }
+  return bots;
+}
+
 function renderActions(state: GameView): void {
   const focusedId = document.activeElement instanceof HTMLElement ? document.activeElement.id : '';
   actions.replaceChildren();
@@ -657,20 +687,7 @@ function renderActions(state: GameView): void {
     actions.append(hint);
 
     if (soyAnfitrion) {
-      const bots = document.createElement('div');
-      bots.className = 'action-row';
-      bots.setAttribute('role', 'group');
-      bots.setAttribute('aria-label', 'Añadir bot');
-      for (const diff of BOT_DIFFICULTIES) {
-        const botBtn = button(
-          `Añadir bot ${diff.label.toLowerCase()}`,
-          () => net.send({ type: 'addBot', difficulty: diff.id }),
-          'secondary',
-        );
-        botBtn.id = `add-bot-${diff.id}`;
-        bots.append(botBtn);
-      }
-      actions.append(bots);
+      actions.append(buildBotRow());
 
       const startBtn = button('Empezar partida', () => net.send({ type: 'start' }));
       startBtn.id = 'start-game';
@@ -684,8 +701,16 @@ function renderActions(state: GameView): void {
   } else if (state.phase === 'gameOver') {
     if (lastSummary) actions.append(buildSummaryPanel(lastSummary));
     if (soyAnfitrion) {
+      const hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.textContent =
+        'Puedes cambiar la configuración de arriba, añadir o quitar bots, y volver a jugar.';
+      actions.append(hint, buildBotRow());
+
       const again = button('Jugar otra vez', () => net.send({ type: 'start' }));
       again.id = 'play-again';
+      again.disabled = state.players.length < 2;
+      if (again.disabled) again.title = 'Hacen falta al menos dos participantes.';
       actions.append(again);
       focusTarget = again;
     }

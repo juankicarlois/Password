@@ -98,9 +98,10 @@ export class Room {
       this.broadcastState();
       return existing.id;
     }
-    // Empezada la partida no se admiten jugadores nuevos: entrar a media ronda
-    // dejaría a alguien sin rol y sin contexto.
-    if (this.phase !== 'lobby') return null;
+    // Con una partida en marcha no se admiten jugadores nuevos: entrar a media
+    // ronda dejaría a alguien sin rol y sin contexto. Terminada sí, para poder
+    // sumarse a la siguiente.
+    if (!this.preparandoPartida) return null;
 
     const id = `p${this.nextPlayerNumber++}`;
     const player: Player = { id, name, isBot: false, connected: true, team: null };
@@ -124,11 +125,22 @@ export class Room {
     return this.players.some((p) => !p.isBot && p.connected);
   }
 
+  /**
+   * true si la sala está preparando una partida: en el vestíbulo o con una
+   * partida ya terminada. Al acabar se puede volver a jugar, así que también se
+   * puede cambiar la configuración, entrar, y añadir o repartir jugadores; si
+   * no, quien termina una partida se queda atado a los mismos ajustes y tiene
+   * que crear otra sala para cambiar de modo.
+   */
+  private get preparandoPartida(): boolean {
+    return this.phase === 'lobby' || this.phase === 'gameOver';
+  }
+
   // --- Bots -----------------------------------------------------------------
 
-  /** Añade un bot con la dificultad indicada. Solo en el vestíbulo. */
+  /** Añade un bot con la dificultad indicada. No durante una partida. */
   addBot(difficulty: BotDifficulty): void {
-    if (this.phase !== 'lobby') return;
+    if (!this.preparandoPartida) return;
     const id = `bot${this.nextBotNumber++}`;
     this.players.push({
       id,
@@ -141,9 +153,9 @@ export class Room {
     this.broadcastState();
   }
 
-  /** Quita un bot por su id. Solo en el vestíbulo. */
+  /** Quita un bot por su id. No durante una partida. */
   removeBot(playerId: string): void {
-    if (this.phase !== 'lobby') return;
+    if (!this.preparandoPartida) return;
     const index = this.players.findIndex((p) => p.id === playerId && p.isBot);
     if (index === -1) return;
     this.players.splice(index, 1);
@@ -152,16 +164,16 @@ export class Room {
 
   // --- Configuración y arranque ---------------------------------------------
 
-  /** Aplica cambios de configuración enviados por el anfitrión (solo en lobby). */
+  /** Aplica cambios de configuración del anfitrión. No durante una partida. */
   setConfig(playerId: string, patch: Partial<GameConfig>): void {
-    if (this.phase !== 'lobby' || playerId !== this.hostId) return;
+    if (!this.preparandoPartida || playerId !== this.hostId) return;
     this.config = { ...this.config, ...patch };
     this.broadcastState();
   }
 
-  /** Asigna al jugador su equipo (1 o 2); solo en el vestíbulo. */
+  /** Asigna al jugador su equipo (1 o 2). No durante una partida. */
   chooseTeam(playerId: string, team: number): void {
-    if (this.phase !== 'lobby') return;
+    if (!this.preparandoPartida) return;
     const player = this.players.find((p) => p.id === playerId && !p.isBot);
     if (player) {
       player.team = team;
@@ -169,9 +181,9 @@ export class Room {
     }
   }
 
-  /** Asigna a un bot su equipo; solo el anfitrión, en el vestíbulo. */
+  /** Asigna a un bot su equipo; solo el anfitrión. No durante una partida. */
   setBotTeam(hostId: string, botId: string, team: number): void {
-    if (this.phase !== 'lobby' || hostId !== this.hostId) return;
+    if (!this.preparandoPartida || hostId !== this.hostId) return;
     const bot = this.players.find((p) => p.id === botId && p.isBot);
     if (bot) {
       bot.team = team;
