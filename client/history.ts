@@ -12,15 +12,34 @@
 /** Avisos que se recuerdan; uno por tecla de la fila de números. */
 export const HISTORY_SIZE = 10;
 
+/**
+ * Un aviso guardado, en sus dos versiones.
+ *
+ * No siempre pueden ser la misma. El lector de pantalla es del jugador y suele
+ * ir por sus auriculares, pero la lectura en voz alta que ofrece el juego sale
+ * por los altavoces, y quien juega al lado la oye: la palabra secreta no puede
+ * viajar por ahí.
+ */
+export interface Announcement {
+  /** Texto íntegro, para la región aria-live y el lector de pantalla. */
+  text: string;
+  /** Lo que dirá la voz del juego; sin lo que no deba oír quien esté cerca. */
+  spoken: string;
+}
+
 export class MessageHistory {
   /** Del más reciente al más antiguo, como los pide el jugador. */
-  private items: string[] = [];
+  private items: Announcement[] = [];
 
-  /** Guarda un aviso recién anunciado, descartando el más viejo si sobra. */
-  record(text: string): void {
+  /**
+   * @brief Guarda un aviso recién anunciado, descartando el más viejo si sobra.
+   * @param text Texto íntegro del aviso.
+   * @param spoken Versión para la voz del juego; por defecto, el mismo texto.
+   */
+  record(text: string, spoken = text): void {
     const clean = text.trim();
     if (!clean) return;
-    this.items.unshift(clean);
+    this.items.unshift({ text: clean, spoken: spoken.trim() || clean });
     if (this.items.length > HISTORY_SIZE) this.items.length = HISTORY_SIZE;
   }
 
@@ -36,16 +55,24 @@ export class MessageHistory {
    * qué punto del historial se está.
    *
    * @param n 1 es el último aviso, 10 el más antiguo que se guarda.
-   * @return El aviso listo para anunciar, o el motivo por el que no está.
+   * @return El aviso listo para anunciar, o el motivo por el que no está. Los
+   *         motivos no esconden nada, así que sus dos versiones coinciden.
    */
-  recall(n: number): string {
-    if (n < 1 || n > HISTORY_SIZE) return 'No hay ningún mensaje con ese número.';
-    const text = this.items[n - 1];
-    if (text) return `Mensaje ${n}. ${text}`;
-    if (this.items.length === 0) return 'Todavía no hay mensajes.';
+  recall(n: number): Announcement {
+    if (n < 1 || n > HISTORY_SIZE) return plain('No hay ningún mensaje con ese número.');
+    const item = this.items[n - 1];
+    if (item) {
+      return { text: `Mensaje ${n}. ${item.text}`, spoken: `Mensaje ${n}. ${item.spoken}` };
+    }
+    if (this.items.length === 0) return plain('Todavía no hay mensajes.');
     const total = this.items.length;
-    return `No hay mensaje ${n}. Solo hay ${total} mensaje${total === 1 ? '' : 's'}.`;
+    return plain(`No hay mensaje ${n}. Solo hay ${total} mensaje${total === 1 ? '' : 's'}.`);
   }
+}
+
+/** Aviso que se lee igual en pantalla que en voz alta (no oculta nada). */
+export function plain(text: string): Announcement {
+  return { text, spoken: text };
 }
 
 /**

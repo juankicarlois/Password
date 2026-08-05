@@ -84,7 +84,10 @@ revisa las condiciones de licencia de esa librería.
   atajos usan siempre **Alt** para no chocar con la navegación rápida del lector.
 - El botón **«Cómo se juega»** abre un manual navegable por encabezados.
 - Quien juega **sin** lector de pantalla puede activar **«Leer en voz alta»** para
-  que el juego lea sus avisos con la voz del navegador.
+  que el juego lea sus avisos con la voz del navegador. Esa voz **nunca dice la
+  palabra secreta** (la tienes en pantalla): sale por los altavoces y la oiría
+  quien juega en la misma habitación. Con lector de pantalla sí se dice, porque
+  hace falta para jugar sin ver; si jugáis en la misma sala, auriculares.
 - El botón **«Tema»** alterna entre automático (el del sistema), claro y oscuro,
   para quien necesite forzar uno concreto. La elección se recuerda.
 - Todos los controles de teclado están documentados en [`teclas.md`](teclas.md).

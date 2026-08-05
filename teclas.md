@@ -12,7 +12,7 @@ lectores. Los únicos atajos propios usan `Alt`, que el lector no intercepta.
 | `Tab` / `Mayús+Tab` | Moverse al siguiente / anterior control (botón o campo). |
 | `Intro` o `Espacio` | Activar el botón que tiene el foco. |
 | `Intro` (en un campo de texto) | Enviar el formulario (entrar en la sala, enviar pista, adivinar). |
-| `Alt+1` … `Alt+9`, `Alt+0` | Repetir un aviso reciente: `Alt+1` el último, … `Alt+0` el décimo. |
+| `Alt+1` … `Alt+9`, `Alt+0` | Repetir un aviso reciente: `Alt+1` el último, … `Alt+0` el décimo. Con «Leer en voz alta» puesto, lo repite también la voz del juego (sin la palabra secreta). |
 
 ## Vestíbulo (entrar y configurar)
 
@@ -31,7 +31,7 @@ recorren con `Tab` y se activan con `Intro` o `Espacio`.
 | Campo «Tu respuesta» + «Adivinar» | El que adivina escribe su intento y lo envía. |
 | «Pasar palabra» | Salta la palabra actual (no puntúa). |
 | «Silenciar sonidos» / «Activar sonidos» | Quita o pone los efectos de sonido. |
-| «Leer en voz alta» / «No leer en voz alta» | Activa o desactiva que el juego lea los avisos (para quien juega sin lector de pantalla). |
+| «Leer en voz alta» / «No leer en voz alta» | Activa o desactiva que el juego lea los avisos (para quien juega sin lector de pantalla). Nunca dice la palabra secreta: sale por los altavoces y la oiría quien juega al lado. |
 | «Tema: automático / claro / oscuro» | Cambia el aspecto. Cada pulsación pasa al siguiente: automático (el del sistema), claro, oscuro. |
 | «Repasar la ronda» | Dice tu palabra secreta (si eres quien da las pistas), la categoría, todas las pistas dadas y lo ya probado sin acertar. |
 | «Cuánto tiempo queda» | Solo en contrarreloj: dice en voz alta el tiempo restante. |
