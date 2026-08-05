@@ -69,7 +69,27 @@ Nunca se commitea directo a `main`: rama con prefijo semántico (`feat/`, `fix/`
 
 ## Comandos
 
-- `npm run dev` — compila el cliente y arranca el servidor en el puerto 3000.
+- `npm run dev` — compila el cliente y arranca el servidor en el puerto 3100
+  (el del trivial es el 3000, para poder tener los dos abiertos a la vez).
 - `npm run typecheck` — comprobación de tipos (sin emitir).
-- `npm test` — tests de la lógica pura (reglas, motor, etc.).
+- `npm test` — tests de la lógica pura (reglas, motor, historial de avisos…).
 - `npm run build:client` / `npm run watch:client` — empaquetado del cliente con esbuild.
+
+> `npm run dev` **no vigila cambios**: si tocas `server/`, hay que reiniciarlo
+> para que el servidor cargue el código nuevo.
+
+## graphify
+
+Este proyecto tiene un grafo de conocimiento en `graphify-out/` (sin versionar):
+god nodes, comunidades y relaciones entre ficheros.
+
+- Para preguntas sobre el código, tira primero de `graphify query "<pregunta>"`.
+  Devuelve un subgrafo acotado, casi siempre más pequeño que `GRAPH_REPORT.md` o
+  que un grep a pelo. Para relaciones, `graphify path "<A>" "<B>"`; para un
+  concepto suelto, `graphify explain "<concepto>"`.
+- `graphify-out/GRAPH_REPORT.md` solo para revisar la arquitectura en bloque o
+  cuando `query`/`path`/`explain` no den contexto suficiente.
+- Después de tocar código, `graphify update .` para que el grafo no se quede
+  viejo (solo AST, no gasta tokens de API).
+- Al **traer cambios** (`git pull`), si el pull ha traído commits nuevos, pasa
+  `graphify update .`. Si dice `Already up to date`, no hace falta.
