@@ -27,7 +27,7 @@ import { SoundEngine } from './audio.js';
 import { Speech } from './speech.js';
 import { ThemeSwitcher } from './theme.js';
 import { HelpScreen } from './help.js';
-import { MessageHistory, historyIndexFromKey } from './history.js';
+import { MessageHistory, historyIndexFromKey, plain, type Announcement } from './history.js';
 
 /** Motor de efectos de sonido; acompaña a los anuncios de voz, sin sustituirlos. */
 const sound = new SoundEngine();
@@ -82,10 +82,19 @@ let announcedThresholds = new Set<number>();
 let announceToggle = false;
 let historyToggle = false;
 /** Avisos acumulados de la ráfaga actual, pendientes de anunciarse juntos. */
-let pendingAnnouncements: string[] = [];
+let pendingAnnouncements: Announcement[] = [];
 let announceTimer: number | null = null;
 /** Ventana de agrupación: cubre los avisos de una acción sin notarse lento. */
 const ANNOUNCE_BATCH_MS = 150;
+/**
+ * Lo que dice la voz del juego en lugar de la palabra secreta.
+ *
+ * Esa voz está pensada para quien juega **sin** lector de pantalla, o sea,
+ * mirando la pantalla: ahí tiene la palabra, grande y a la vista. Cantarla por
+ * los altavoces solo serviría para regalársela a quien tiene que adivinarla si
+ * está sentado al lado.
+ */
+const SECRETO_EN_PANTALLA = 'Tu palabra secreta está en la pantalla.';
 const messageHistory = new MessageHistory();
 
 // --- Red --------------------------------------------------------------------
@@ -112,7 +121,10 @@ const net = new Net({
         // Quien da las pistas tiene que OÍR su palabra. En pantalla la ve, pero
         // sin anunciarla habría que salir a buscarla con el lector cada ronda.
         // Llega justo después del aviso de ronda nueva, así que se dicen juntas.
-        if (message.word) announce(`Tu palabra secreta: ${message.word}.`);
+        // La voz del juego no la dice: ver `announce`.
+        if (message.word) {
+          announce(`Tu palabra secreta: ${message.word}.`, SECRETO_EN_PANTALLA);
+        }
         if (lastState) renderActions(lastState);
         break;
       case 'clueRejected':
@@ -184,24 +196,30 @@ function showError(message: string): void {
  * Una sola acción puede generar varios avisos casi a la vez; si cada uno se
  * escribiera directo en la región aria-live, el siguiente pisaría al anterior.
  * Por eso se agrupan y se anuncian juntos, en orden, como una sola frase.
+ *
+ * @param text Aviso para el lector de pantalla del jugador.
+ * @param spoken Qué decir en su lugar si está puesta la lectura en voz alta del
+ *        juego, que sale por los altavoces y oye quien esté al lado. Por defecto,
+ *        lo mismo: solo cambia en lo que deba quedar entre el jugador y su lector.
  */
-function announce(text: string): void {
-  pendingAnnouncements.push(text);
+function announce(text: string, spoken = text): void {
+  pendingAnnouncements.push({ text, spoken });
   if (announceTimer !== null) return;
   announceTimer = window.setTimeout(flushAnnouncements, ANNOUNCE_BATCH_MS);
 }
 
 function flushAnnouncements(): void {
   announceTimer = null;
-  const text = pendingAnnouncements.join(' ');
+  const text = pendingAnnouncements.map((a) => a.text).join(' ');
+  const spoken = pendingAnnouncements.map((a) => a.spoken).join(' ');
   pendingAnnouncements = [];
-  messageHistory.record(text);
+  messageHistory.record(text, spoken);
   // El carácter invisible alterna el contenido: si el texto fuese idéntico al
   // anterior, el lector no lo repetiría.
   announceToggle = !announceToggle;
   announceRegion.textContent = announceToggle ? text : text + '​';
   // Lectura en voz alta opcional (para quien juega sin lector de pantalla).
-  speech.speak(text);
+  speech.speak(spoken);
 }
 
 function nameOf(playerId: string): string {
@@ -389,25 +407,31 @@ timeButton.addEventListener('click', () => {
  *        dadas y lo que ya se ha probado.
  *
  * La palabra solo aparece si este cliente la tiene, y solo la recibe quien da
- * las pistas: al que adivina no se le puede chivar.
+ * las pistas: al que adivina no se le puede chivar. Por eso el repaso sale en
+ * dos versiones (ver `announce`): la voz del juego remite a la pantalla en vez
+ * de cantar la palabra.
  *
- * @return La frase para anunciar.
+ * @return El repaso, en su versión para el lector y en la de la voz del juego.
  */
-function recapRound(): string {
+function recapRound(): Announcement {
   const round = lastState?.round;
-  if (!round || lastState?.phase !== 'playing') return 'No hay ninguna ronda en marcha.';
+  if (!round || lastState?.phase !== 'playing') return plain('No hay ninguna ronda en marcha.');
 
-  const partes: string[] = [];
-  if (secretWord) partes.push(`Tu palabra secreta: ${secretWord}.`);
-  partes.push(`Categoría: ${round.category}.`);
-  partes.push(
+  // Lo que todos pueden oír: no descubre la palabra a quien esté escuchando.
+  const comun: string[] = [`Categoría: ${round.category}.`];
+  comun.push(
     round.clues.length === 0
       ? 'Todavía no hay pistas.'
       : `Pistas: ${round.clues.map((clue, i) => `${i + 1}, ${clue}`).join('. ')}.`,
   );
   const fallados = round.guesses.filter((g) => !g.correct).map((g) => g.text);
-  if (fallados.length > 0) partes.push(`Ya se ha probado, sin acertar: ${fallados.join(', ')}.`);
-  return partes.join(' ');
+  if (fallados.length > 0) comun.push(`Ya se ha probado, sin acertar: ${fallados.join(', ')}.`);
+
+  if (!secretWord) return plain(comun.join(' '));
+  return {
+    text: [`Tu palabra secreta: ${secretWord}.`, ...comun].join(' '),
+    spoken: [SECRETO_EN_PANTALLA, ...comun].join(' '),
+  };
 }
 
 /**
@@ -416,7 +440,10 @@ function recapRound(): string {
  * vez; ir sacándolas de los mensajes sueltos con Alt+número era ir a ciegas.
  * Como todo lo que se anuncia, este repaso también queda guardado ahí.
  */
-$<HTMLButtonElement>('btn-recap').addEventListener('click', () => announce(recapRound()));
+$<HTMLButtonElement>('btn-recap').addEventListener('click', () => {
+  const repaso = recapRound();
+  announce(repaso.text, repaso.spoken);
+});
 
 function renderStatus(state: GameView): void {
   let text: string;
@@ -1144,9 +1171,12 @@ function manageFocus(state: GameView, target: HTMLElement | null, previousFocusI
 // --- Repetición de avisos (Alt+número) --------------------------------------
 
 function announceHistory(n: number): void {
-  const text = messageHistory.recall(n);
+  const { text, spoken } = messageHistory.recall(n);
   historyToggle = !historyToggle;
   historyRegion.textContent = historyToggle ? text : text + '​';
+  // La región es solo para lectores de pantalla; quien juega con la voz del
+  // juego no vería nada, así que se la repite ella (sin la palabra secreta).
+  speech.speak(spoken);
 }
 
 document.addEventListener('keydown', (ev) => {
